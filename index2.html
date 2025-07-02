@@ -93,16 +93,6 @@
       font-size: 1.2rem;
       color: #f2f2f2;
     }
-    .radar {
-      text-align: center;
-      margin: 40px auto;
-    }
-    .radar iframe {
-      border: none;
-      width: 100%;
-      max-width: 700px;
-      height: 500px;
-    }
     footer {
       text-align: center;
       font-size: 1.1rem;
@@ -166,11 +156,6 @@
   <input id="hpaInput" type="number" step="0.1" placeholder="Enter hPa" />
   <button onclick="convertPressure()">Convert</button>
   <p id="inhgResult"></p>
-</div>
-
-<div class="radar">
-  <h3 style="color: #8ecfff;">Live Radar – Curaçao</h3>
-  <iframe src="https://www.meteo.cw/rad_loop.php" allowfullscreen></iframe>
 </div>
 
 <footer>
@@ -258,3 +243,9 @@
 
   fetchRawMetars();
   setInterval(fetchRawMetars, 5 * 60 * 1000); // Refresh every 5 min
+  updateClocks();
+  setInterval(updateClocks, 1000); // Update clocks every second
+</script>
+
+</body>
+</html>
