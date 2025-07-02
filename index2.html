@@ -10,242 +10,236 @@
       margin: 0;
       padding: 40px;
       font-family: 'Segoe UI', Verdana, sans-serif;
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       transition: background-color 0.3s, color 0.3s;
     }
     h1 {
       text-align: center;
-      font-size: 2.5rem;
+      font-size: 2rem;
       margin-bottom: 10px;
     }
     #clocks {
       text-align: center;
-      font-size: 1.2rem;
-      margin-bottom: 20px;
+      font-size: 1rem;
+      margin-bottom: 8px;
       color: #8ecfff;
+    }
+    #countdown {
+      text-align: center;
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+      color: #ffcc66;
     }
     .theme-toggle {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     .theme-toggle label {
-      font-size: 1.2rem;
+      font-size: 1rem;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 0 auto 40px;
-      font-size: 1.5rem;
+      margin: 0 auto 30px;
+      font-size: 1.3rem;
       user-select: text;
     }
     th, td {
-      padding: 16px;
+      padding: 10px;
       border: 1px solid #2a3b47;
       text-align: left;
     }
     th {
       background-color: #003b5a;
       color: white;
-      font-size: 1.6rem;
-    }
-    tr:hover {
-      background-color: #1c2a35;
-    }
-    .alert-gust {
-      background-color: #5c1e1e;
-      color: #fff;
-      font-weight: bold;
-    }
-    .alert-weather {
-      background-color: #5a4a00;
-      color: #fff;
-      font-weight: bold;
-    }
-    .converter {
-      max-width: 300px;
-      margin: 0 auto 60px;
-      background: #00243a;
-      padding: 15px;
-      border-radius: 6px;
-    }
-    .converter h3 {
-      margin: 0 0 10px;
-      color: #8ecfff;
       font-size: 1.4rem;
     }
-    .converter input {
-      width: 100%;
-      padding: 8px;
-      font-size: 1rem;
-      margin-bottom: 10px;
+    tr:hover { background-color: #1c2a35; }
+    .alert-speci {
+      background-color: #004d4d;
+      color: #fff;
+      font-weight: bold;
     }
+    .converter-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    .converter {
+      background: #00243a;
+      padding: 10px;
+      border-radius: 6px;
+      flex: 1 1 180px;
+      max-width: 180px;
+    }
+    .converter h3 {
+      margin: 0 0 6px;
+      color: #8ecfff;
+      font-size: 1.1rem;
+    }
+    .converter input,
     .converter button {
       width: 100%;
-      padding: 8px;
-      background: #007acc;
-      color: white;
-      border: none;
-      font-size: 1rem;
-      cursor: pointer;
+      padding: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      box-sizing: border-box;
     }
     .converter p {
-      margin-top: 10px;
-      font-size: 1.2rem;
+      margin-top: 6px;
+      font-size: 1rem;
       color: #f2f2f2;
+      text-align: center;
     }
     footer {
       text-align: center;
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       color: #aaa;
     }
-
-    /* Light Mode Styles */
     body.light-mode {
       background-color: #f2f2f2;
       color: #101820;
     }
-    body.light-mode table th {
-      background-color: #d0d0d0;
-      color: #101820;
-    }
-    body.light-mode table td {
-      background-color: #ffffff;
-      color: #101820;
-    }
-    body.light-mode .converter {
-      background-color: #e0e0e0;
-    }
-    body.light-mode footer {
-      color: #333;
-    }
-    body.light-mode #clocks {
-      color: #003b5a;
-    }
+    body.light-mode table th { background-color: #d0d0d0; color: #101820; }
+    body.light-mode table td { background-color: #ffffff; color: #101820; }
+    body.light-mode .converter { background-color: #e0e0e0; }
+    body.light-mode footer { color: #333; }
+    body.light-mode #clocks { color: #003b5a; }
+    body.light-mode #countdown { color: #cc6600; }
   </style>
 </head>
 <body>
 
-<h1>Caribbean & Venezuela – Raw METAR Reports</h1>
+  <h1>Caribbean & Venezuela – Raw METAR Reports</h1>
 
-<div id="clocks">
-  UTC Time: <span id="utc-time">Loading...</span> &nbsp;|&nbsp;
-  Local Time: <span id="local-time">Loading...</span>
-</div>
+  <div id="clocks">
+    UTC Time: <span id="utc-time">–</span> | Local Time: <span id="local-time">–</span>
+  </div>
+  <div id="countdown">Next update in: <span id="timer">–</span></div>
 
-<div class="theme-toggle">
-  <label>
-    <input type="checkbox" id="themeToggle" style="transform: scale(1.3); margin-right: 8px;" />
-    Toggle Light/Dark Mode
-  </label>
-</div>
+  <div class="theme-toggle">
+    <label><input type="checkbox" id="themeToggle" /> Toggle Light/Dark Mode</label>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Airport</th>
-      <th>Raw METAR</th>
-    </tr>
-  </thead>
-  <tbody id="metar-data">
-    <tr><td colspan="2">Loading METAR data...</td></tr>
-  </tbody>
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>Airport</th>
+        <th>Time (UTC)</th>
+        <th>Raw METAR</th>
+      </tr>
+    </thead>
+    <tbody id="metar-data">
+      <tr><td colspan="3">Loading METAR data…</td></tr>
+    </tbody>
+  </table>
 
-<div class="converter">
-  <h3>hPa → inHg</h3>
-  <input id="hpaInput" type="number" step="0.1" placeholder="Enter hPa" />
-  <button onclick="convertPressure()">Convert</button>
-  <p id="inhgResult"></p>
-</div>
+  <div class="converter-container">
+    <div class="converter">
+      <h3>hPa → inHg</h3>
+      <input id="hpaInput" type="number" step="0.1" placeholder="hPa" />
+      <button onclick="convertPressure()">▶ Convert</button>
+      <p id="inhgResult">–</p>
+    </div>
+    <div class="converter">
+      <h3>Cloud Base</h3>
+      <input id="tempInput" type="number" step="0.1" placeholder="T (°C)" />
+      <input id="dewInput" type="number" step="0.1" placeholder="Td (°C)" />
+      <button onclick="calculateCloudBase()">▶ Calc</button>
+      <p id="cloudBaseResult">–</p>
+    </div>
+  </div>
 
-<footer>
-  &copy; 2025 Caribbean & Venezuela Aviation Weather
-</footer>
+  <footer>&copy; 2025 Caribbean & Venezuela Aviation Weather</footer>
 
-<script>
-  const stations = ['TNCA', 'TNCB', 'TNCC', 'TNCM', 'SVMI', 'SVVA'];
-  const names = {
-    TNCA: 'Aruba (TNCA)',
-    TNCB: 'Bonaire (TNCB)',
-    TNCC: 'Curaçao (TNCC)',
-    TNCM: 'St. Maarten (TNCM)',
-    SVMI: 'Caracas (SVMI)',
-    SVVA: 'Valencia (SVVA)'
-  };
-  const tbody = document.getElementById('metar-data');
-  const alertSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+  <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+    const tbody = document.getElementById('metar-data');
+    const alertSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    let countdown = 300;
 
-  async function fetchRawMetars() {
-    try {
-      const res = await fetch(`https://api.checkwx.com/metar/${stations.join(',')}`, {
-        headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' }
-      });
-      const json = await res.json();
+    async function fetchMetars() {
+      try {
+        const res = await fetch(
+          `https://api.checkwx.com/metar/${stations.join(',')}`, {
+            headers:{'X-API-Key':'fb135a94c0574db4b26082b70705b4af'}
+          }
+        );
+        const json = await res.json();
+        let foundSpeci = false;
 
-      let shouldAlert = false;
+        const rows = json.data.map(raw => {
+          const [code, time='–', ...rest] = raw.split(' ');
+          const isSpeci = raw.startsWith('SPECI');
+          if (isSpeci) foundSpeci = true;
+          const cls = isSpeci ? 'alert-speci' : '';
+          return `<tr>
+            <td>${code}</td>
+            <td>${time}</td>
+            <td class="${cls}">${[code,time,...rest].join(' ')}</td>
+          </tr>`;
+        }).join('');
 
-      const rows = json.data.map(raw => {
-        const code = raw.split(' ')[0];
-        const label = names[code] || code;
-
-        const isGust = /G\d{2,}/.test(raw);
-        const isWeather = /(TS|RA|SH|FG|BR|SN|DZ|SQ|FC|GR|GS|HZ|DU|SA|VA|SS|DS)/.test(raw);
-
-        let className = '';
-        if (isGust) {
-          className = 'alert-gust';
-          shouldAlert = true;
-        } else if (isWeather) {
-          className = 'alert-weather';
-          shouldAlert = true;
-        }
-
-        return `<tr><td>${label}</td><td class="${className}">${raw}</td></tr>`;
-      }).join('');
-
-      tbody.innerHTML = rows;
-
-      if (shouldAlert) {
-        alertSound.play().catch(() => {});
+        tbody.innerHTML = rows;
+        if (foundSpeci) alertSound.play().catch(() => {});
+        countdown = 300;
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="3">⚠️ Error loading METAR data</td></tr>`;
       }
-    } catch (err) {
-      console.error('Error loading METAR:', err);
-      tbody.innerHTML = `<tr><td colspan="2">⚠️ Error loading data. Check connection or API key.</td></tr>`;
     }
-  }
 
-  function convertPressure() {
-    const hpa = parseFloat(document.getElementById('hpaInput').value);
-    const inhg = hpa * 0.02953;
-    document.getElementById('inhgResult').textContent =
-      isNaN(inhg) ? '—' : `${hpa} – ${inhg.toFixed(2)}`;
-  }
+    // Expose converter functions globally
+    window.convertPressure = () => {
+      const hpa = parseFloat(document.getElementById('hpaInput').value);
+      const inhg = hpa * 0.02953;
+      document.getElementById('inhgResult').textContent =
+        isNaN(inhg) ? '–' : `${inhg.toFixed(2)} inHg`;
+    };
 
-  function updateClocks() {
-    const now = new Date();
-    const utc = now.toUTCString().replace('GMT', 'UTC');
-    const local = now.toLocaleString();
-    document.getElementById('utc-time').textContent = utc;
-    document.getElementById('local-time').textContent = local;
-  }
+    window.calculateCloudBase = () => {
+      const t = parseFloat(document.getElementById('tempInput').value);
+      const d = parseFloat(document.getElementById('dewInput').value);
+      const base = (t - d) * 222;
+      document.getElementById('cloudBaseResult').textContent =
+        isNaN(base) ? '–' : `${Math.round(base)} ft AGL`;
+    };
 
-  // Theme toggle logic
-  const toggle = document.getElementById('themeToggle');
-  const currentTheme = localStorage.getItem('theme');
-  if (currentTheme === 'light') {
-    document.body.classList.add('light-mode');
-    toggle.checked = true;
-  }
-  toggle.addEventListener('change', () => {
-    document.body.classList.toggle('light-mode');
-    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+    function updateClocks() {
+      const now = new Date();
+      document.getElementById('utc-time').textContent =
+        now.toUTCString().replace('GMT','UTC');
+      document.getElementById('local-time').textContent =
+        now.toLocaleString();
+    }
+
+    function updateCountdown() {
+      const m = Math.floor(countdown/60), s = countdown % 60;
+      document.getElementById('timer').textContent =
+        `${m}:${s.toString().padStart(2,'0')}`;
+      if (countdown > 0) countdown--;
+    }
+
+    // Theme toggle
+    const tog = document.getElementById('themeToggle');
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light-mode');
+      tog.checked = true;
+    }
+    tog.addEventListener('change', () => {
+      const light = document.body.classList.toggle('light-mode');
+      localStorage.setItem('theme', light ? 'light' : 'dark');
+    });
+
+    // Initialize
+    fetchMetars();
+    setInterval(fetchMetars, 300000);
+    updateClocks(); setInterval(updateClocks, 1000);
+    updateCountdown(); setInterval(updateCountdown, 1000);
   });
-
-  fetchRawMetars();
-  setInterval(fetchRawMetars, 5 * 60 * 1000); // Refresh every 5 min
-  updateClocks();
-  setInterval(updateClocks, 1000); // Update clocks every second
-</script>
+  </script>
 
 </body>
 </html>
