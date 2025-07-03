@@ -88,11 +88,12 @@
       <tr>
         <th>Airport</th>
         <th>Time (UTC)</th>
-        <th>Raw METAR & QNH</th>
+        <th>Raw METAR</th>
+        <th>QNH (hPa - inHg)</th>
       </tr>
     </thead>
     <tbody id="metar-data">
-      <tr><td colspan="3">Loading METAR data…</td></tr>
+      <tr><td colspan="4">Loading METAR data…</td></tr>
     </tbody>
   </table>
 
@@ -121,19 +122,22 @@
             if (isSpeci) foundSpeci = true;
             const cls = isSpeci ? 'alert-speci' : '';
 
+            const metarText = [code, time, ...rest].join(' ');
+
             // QNH Conversion
             const qnhMatch = raw.match(/Q(\d{4})/);
-            let pressureNote = '';
+            let qnhValue = '–';
             if (qnhMatch) {
               const hpa = parseInt(qnhMatch[1], 10);
               const inhg = (hpa * 0.02953).toFixed(2);
-              pressureNote = `<br><small style="color:#ffcc66;">${hpa} - ${inhg}</small>`;
+              qnhValue = `${hpa} - ${inhg}`;
             }
 
             return `<tr>
               <td>${code}</td>
               <td>${time}</td>
-              <td class="${cls}">${[code, time, ...rest].join(' ')}${pressureNote}</td>
+              <td class="${cls}">${metarText}</td>
+              <td>${qnhValue}</td>
             </tr>`;
           }).join('');
 
@@ -141,7 +145,7 @@
           if (foundSpeci) alertSound.play().catch(() => {});
           countdown = 300;
         } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="3">⚠️ Error loading METAR data</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="4">⚠️ Error loading METAR data</td></tr>`;
         }
       }
 
@@ -179,4 +183,3 @@
 
 </body>
 </html>
-
