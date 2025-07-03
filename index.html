@@ -34,15 +34,11 @@
       text-align: center;
       margin-bottom: 20px;
     }
-    .theme-toggle label {
-      font-size: 1rem;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 0 auto 30px;
       font-size: 1.3rem;
-      user-select: text;
+      margin-bottom: 30px;
     }
     th, td {
       padding: 10px;
@@ -52,46 +48,12 @@
     th {
       background-color: #003b5a;
       color: white;
-      font-size: 1.4rem;
     }
     tr:hover { background-color: #1c2a35; }
     .alert-speci {
       background-color: #004d4d;
       color: #fff;
       font-weight: bold;
-    }
-    .converter-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 40px;
-    }
-    .converter {
-      background: #00243a;
-      padding: 10px;
-      border-radius: 6px;
-      flex: 1 1 180px;
-      max-width: 180px;
-    }
-    .converter h3 {
-      margin: 0 0 6px;
-      color: #8ecfff;
-      font-size: 1.1rem;
-    }
-    .converter input,
-    .converter button {
-      width: 100%;
-      padding: 6px;
-      font-size: 0.9rem;
-      margin-bottom: 6px;
-      box-sizing: border-box;
-    }
-    .converter p {
-      margin-top: 6px;
-      font-size: 1rem;
-      color: #f2f2f2;
-      text-align: center;
     }
     footer {
       text-align: center;
@@ -104,7 +66,6 @@
     }
     body.light-mode table th { background-color: #d0d0d0; color: #101820; }
     body.light-mode table td { background-color: #ffffff; color: #101820; }
-    body.light-mode .converter { background-color: #e0e0e0; }
     body.light-mode footer { color: #333; }
     body.light-mode #clocks { color: #003b5a; }
     body.light-mode #countdown { color: #cc6600; }
@@ -113,7 +74,6 @@
 <body>
 
   <h1>Caribbean & Venezuela – Raw METAR Reports</h1>
-
   <div id="clocks">
     UTC Time: <span id="utc-time">–</span> | Local Time: <span id="local-time">–</span>
   </div>
@@ -128,7 +88,7 @@
       <tr>
         <th>Airport</th>
         <th>Time (UTC)</th>
-        <th>Raw METAR</th>
+        <th>Raw METAR & QNH</th>
       </tr>
     </thead>
     <tbody id="metar-data">
@@ -136,110 +96,87 @@
     </tbody>
   </table>
 
-  <div class="converter-container">
-    <div class="converter">
-      <h3>hPa → inHg</h3>
-      <input id="hpaInput" type="number" step="0.1" placeholder="hPa" />
-      <button onclick="convertPressure()">▶ Convert</button>
-      <p id="inhgResult">–</p>
-    </div>
-    <div class="converter">
-      <h3>Cloud Base</h3>
-      <input id="tempInput" type="number" step="0.1" placeholder="T (°C)" />
-      <input id="dewInput" type="number" step="0.1" placeholder="Td (°C)" />
-      <button onclick="calculateCloudBase()">▶ Calc</button>
-      <p id="cloudBaseResult">–</p>
-    </div>
-  </div>
-
   <footer>&copy; 2025 Caribbean & Venezuela Aviation Weather</footer>
 
   <script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
-    const tbody = document.getElementById('metar-data');
-    const alertSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-    let countdown = 300;
+    window.addEventListener('DOMContentLoaded', () => {
+      const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+      const tbody = document.getElementById('metar-data');
+      const alertSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+      let countdown = 300;
 
-    async function fetchMetars() {
-      try {
-        const res = await fetch(
-          `https://api.checkwx.com/metar/${stations.join(',')}`, {
-            headers:{'X-API-Key':'fb135a94c0574db4b26082b70705b4af'}
-          }
-        );
-        const json = await res.json();
-        let foundSpeci = false;
+      async function fetchMetars() {
+        try {
+          const res = await fetch(
+            `https://api.checkwx.com/metar/${stations.join(',')}`, {
+              headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' }
+            }
+          );
+          const json = await res.json();
+          let foundSpeci = false;
 
-        const rows = json.data.map(raw => {
-          const [code, time='–', ...rest] = raw.split(' ');
-          const isSpeci = raw.startsWith('SPECI');
-          if (isSpeci) foundSpeci = true;
-          const cls = isSpeci ? 'alert-speci' : '';
-          return `<tr>
-            <td>${code}</td>
-            <td>${time}</td>
-            <td class="${cls}">${[code,time,...rest].join(' ')}</td>
-          </tr>`;
-        }).join('');
+          const rows = json.data.map(raw => {
+            const [code, time = '–', ...rest] = raw.split(' ');
+            const isSpeci = raw.startsWith('SPECI');
+            if (isSpeci) foundSpeci = true;
+            const cls = isSpeci ? 'alert-speci' : '';
 
-        tbody.innerHTML = rows;
-        if (foundSpeci) alertSound.play().catch(() => {});
-        countdown = 300;
-      } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="3">⚠️ Error loading METAR data</td></tr>`;
+            // QNH Conversion
+            const qnhMatch = raw.match(/Q(\d{4})/);
+            let pressureNote = '';
+            if (qnhMatch) {
+              const hpa = parseInt(qnhMatch[1], 10);
+              const inhg = (hpa * 0.02953).toFixed(2);
+              pressureNote = `<br><small style="color:#ffcc66;">${hpa} - ${inhg}</small>`;
+            }
+
+            return `<tr>
+              <td>${code}</td>
+              <td>${time}</td>
+              <td class="${cls}">${[code, time, ...rest].join(' ')}${pressureNote}</td>
+            </tr>`;
+          }).join('');
+
+          tbody.innerHTML = rows;
+          if (foundSpeci) alertSound.play().catch(() => {});
+          countdown = 300;
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="3">⚠️ Error loading METAR data</td></tr>`;
+        }
       }
-    }
 
-    // Expose converter functions globally
-    window.convertPressure = () => {
-      const hpa = parseFloat(document.getElementById('hpaInput').value);
-      const inhg = hpa * 0.02953;
-      document.getElementById('inhgResult').textContent =
-        isNaN(inhg) ? '–' : `${inhg.toFixed(2)} inHg`;
-    };
+      function updateClocks() {
+        const now = new Date();
+        document.getElementById('utc-time').textContent =
+          now.toUTCString().replace('GMT','UTC');
+        document.getElementById('local-time').textContent =
+          now.toLocaleString();
+      }
 
-    window.calculateCloudBase = () => {
-      const t = parseFloat(document.getElementById('tempInput').value);
-      const d = parseFloat(document.getElementById('dewInput').value);
-      const base = (t - d) * 222;
-      document.getElementById('cloudBaseResult').textContent =
-        isNaN(base) ? '–' : `${Math.round(base)} ft AGL`;
-    };
+      function updateCountdown() {
+        const m = Math.floor(countdown/60), s = countdown % 60;
+        document.getElementById('timer').textContent =
+          `${m}:${s.toString().padStart(2,'0')}`;
+        if (countdown > 0) countdown--;
+      }
 
-    function updateClocks() {
-      const now = new Date();
-      document.getElementById('utc-time').textContent =
-        now.toUTCString().replace('GMT','UTC');
-      document.getElementById('local-time').textContent =
-        now.toLocaleString();
-    }
+      const tog = document.getElementById('themeToggle');
+      if (localStorage.getItem('theme') === 'light') {
+        document.body.classList.add('light-mode');
+        tog.checked = true;
+      }
+      tog.addEventListener('change', () => {
+        const light = document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', light ? 'light' : 'dark');
+      });
 
-    function updateCountdown() {
-      const m = Math.floor(countdown/60), s = countdown % 60;
-      document.getElementById('timer').textContent =
-        `${m}:${s.toString().padStart(2,'0')}`;
-      if (countdown > 0) countdown--;
-    }
-
-    // Theme toggle
-    const tog = document.getElementById('themeToggle');
-    if (localStorage.getItem('theme') === 'light') {
-      document.body.classList.add('light-mode');
-      tog.checked = true;
-    }
-    tog.addEventListener('change', () => {
-      const light = document.body.classList.toggle('light-mode');
-      localStorage.setItem('theme', light ? 'light' : 'dark');
+      fetchMetars();
+      setInterval(fetchMetars, 300000);
+      updateClocks(); setInterval(updateClocks, 1000);
+      updateCountdown(); setInterval(updateCountdown, 1000);
     });
-
-    // Initialize
-    fetchMetars();
-    setInterval(fetchMetars, 300000);
-    updateClocks(); setInterval(updateClocks, 1000);
-    updateCountdown(); setInterval(updateCountdown, 1000);
-  });
   </script>
 
 </body>
 </html>
+
