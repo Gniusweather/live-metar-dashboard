@@ -102,6 +102,7 @@
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+      const alertStations = ['TNCA', 'TNCB', 'TNCC'];
       const tbody = document.getElementById('metar-data');
       const alertSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
       let countdown = 300;
@@ -114,17 +115,17 @@
             }
           );
           const json = await res.json();
-          let foundSpeci = false;
 
           const rows = json.data.map(raw => {
             const [code, time = '–', ...rest] = raw.split(' ');
+            const fullText = [code, time, ...rest].join(' ');
             const isSpeci = raw.startsWith('SPECI');
-            if (isSpeci) foundSpeci = true;
+            const hasGust = raw.includes('G');
+            const hasThunder = raw.includes('TS');
+            const isAlertStation = alertStations.includes(code);
+
             const cls = isSpeci ? 'alert-speci' : '';
 
-            const metarText = [code, time, ...rest].join(' ');
-
-            // QNH Conversion
             const qnhMatch = raw.match(/Q(\d{4})/);
             let qnhValue = '–';
             if (qnhMatch) {
@@ -133,16 +134,20 @@
               qnhValue = `${hpa} - ${inhg}`;
             }
 
+            // Trigger alert only for TNCA, TNCB, TNCC
+            if (isAlertStation && (isSpeci || hasGust || hasThunder)) {
+              alertSound.play().catch(() => {});
+            }
+
             return `<tr>
               <td>${code}</td>
               <td>${time}</td>
-              <td class="${cls}">${metarText}</td>
+              <td class="${cls}">${fullText}</td>
               <td>${qnhValue}</td>
             </tr>`;
           }).join('');
 
           tbody.innerHTML = rows;
-          if (foundSpeci) alertSound.play().catch(() => {});
           countdown = 300;
         } catch (e) {
           tbody.innerHTML = `<tr><td colspan="4">⚠️ Error loading METAR data</td></tr>`;
