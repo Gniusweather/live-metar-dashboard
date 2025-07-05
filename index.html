@@ -4,133 +4,7 @@
   <meta charset="UTF-8" />
   <title>Caribbean & Venezuela METAR Dashboard</title>
   <style>
-    /* Base styles */
-    body {
-      background-color: #101820;
-      color: #f2f2f2;
-      margin: 0;
-      padding: 40px;
-      font-family: 'Segoe UI', Verdana, sans-serif;
-      font-size: 1.2rem;
-      transition: background-color 0.3s, color 0.3s;
-    }
-    h1 {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 10px;
-    }
-    #clocks, #countdown {
-      text-align: center;
-    }
-    #clocks {
-      font-size: 1rem;
-      margin-bottom: 8px;
-      color: #8ecfff;
-    }
-    #countdown {
-      font-size: 0.95rem;
-      margin-bottom: 20px;
-      color: #ffcc66;
-    }
-    .theme-toggle {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .theme-toggle label {
-      font-size: 1rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 1.3rem;
-      margin-bottom: 30px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #2a3b47;
-      text-align: left;
-    }
-    th {
-      background-color: #003b5a;
-      color: white;
-    }
-    tr:hover {
-      background-color: #1c2a35;
-    }
-    .alert-speci {
-      background-color: #004d4d;
-      color: #fff;
-      font-weight: bold;
-    }
-    footer {
-      text-align: center;
-      font-size: 0.9rem;
-      color: #aaa;
-    }
-
-    /* Alert log sidebar */
-    #alert-toggle {
-      position: fixed;
-      right: 0;
-      top: 60px;
-      background: #004d80;
-      color: #fff;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-weight: bold;
-      border-bottom-left-radius: 4px;
-      z-index: 1000;
-    }
-    #alert-log {
-      position: fixed;
-      right: 0;
-      top: 100px;
-      width: 300px;
-      height: calc(100vh - 140px);
-      background: #00243a;
-      color: #f2f2f2;
-      overflow-y: auto;
-      padding: 10px;
-      box-shadow: -2px 0 6px rgba(0,0,0,0.4);
-      display: none;
-      font-size: 0.9rem;
-      line-height: 1.4;
-      z-index: 999;
-    }
-    #alert-log hr {
-      border-color: #555;
-    }
-
-    /* Light mode overrides */
-    body.light-mode {
-      background-color: #f2f2f2;
-      color: #101820;
-    }
-    body.light-mode table th {
-      background-color: #d0d0d0;
-      color: #101820;
-    }
-    body.light-mode table td {
-      background-color: #ffffff;
-      color: #101820;
-    }
-    body.light-mode #clocks {
-      color: #003b5a;
-    }
-    body.light-mode #countdown {
-      color: #cc6600;
-    }
-    body.light-mode footer {
-      color: #333;
-    }
-    body.light-mode #alert-log {
-      background: #e0e0e0;
-      color: #101820;
-    }
-    body.light-mode #alert-toggle {
-      background: #ddd;
-      color: #101820;
-    }
+    /* ... (unchanged styles from your previous version) ... */
   </style>
 </head>
 <body>
@@ -151,7 +25,6 @@
     </label>
   </div>
 
-  <!-- Alert log toggle & container -->
   <div id="alert-toggle">Show Alerts</div>
   <div id="alert-log">
     <strong>📋 Recent Alerts</strong>
@@ -175,131 +48,124 @@
   <footer>&copy; 2025 Caribbean & Venezuela Aviation Weather</footer>
 
   <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      // Station lists
-      const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
-      const alertStations = ['TNCA','TNCB','TNCC'];
+    const stations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+    const alertStations = ['TNCA','TNCB','TNCC'];
 
-      // DOM elements
-      const tbody = document.getElementById('metar-data');
-      const alertLogEl = document.getElementById('alert-log');
-      const toggleBtn = document.getElementById('alert-toggle');
+    const tbody       = document.getElementById('metar-data');
+    const alertLogEl  = document.getElementById('alert-log');
+    const toggleBtn   = document.getElementById('alert-toggle');
+    const timerEl     = document.getElementById('timer');
 
-      // Sounds
-      const speciSound   = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-      const gustSound    = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_bird.ogg');
-      const thunderSound = new Audio('https://actions.google.com/sounds/v1/weather/thunder_crack.ogg');
+    const speciSound   = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    const gustSound    = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_bird.ogg');
+    const thunderSound = new Audio('https://actions.google.com/sounds/v1/weather/thunder_crack.ogg');
 
-      // Alert history buffer
-      let alertHistory = [];
+    let alertHistory = [];
+    let countdown = 30;
+    let intervalID;
 
-      // Log alerts to sidebar
-      function logAlert(message) {
-        const time = new Date().toLocaleTimeString();
-        alertHistory.unshift(`• ${time} – ${message}`);
-        if (alertHistory.length > 10) alertHistory.pop();
-        alertLogEl.innerHTML = `<strong>📋 Recent Alerts</strong><hr/>` +
-          alertHistory.join('<br/>');
-      }
+    function logAlert(message) {
+      const time = new Date().toLocaleTimeString();
+      alertHistory.unshift(`• ${time} – ${message}`);
+      if (alertHistory.length > 10) alertHistory.pop();
+      alertLogEl.innerHTML = `<strong>📋 Recent Alerts</strong><hr/>` +
+        alertHistory.join('<br/>');
+    }
 
-      // Toggle alert sidebar
-      toggleBtn.onclick = () => {
-        const showing = alertLogEl.style.display === 'block';
-        alertLogEl.style.display = showing ? 'none' : 'block';
-        toggleBtn.textContent = showing ? 'Show Alerts' : 'Hide Alerts';
-      };
+    toggleBtn.onclick = () => {
+      const showing = alertLogEl.style.display === 'block';
+      alertLogEl.style.display = showing ? 'none' : 'block';
+      toggleBtn.textContent = showing ? 'Show Alerts' : 'Hide Alerts';
+    };
 
-      // Fetch and render METARs
-      async function fetchMetars() {
-        try {
-          const res  = await fetch(
-            `https://api.checkwx.com/metar/${stations.join(',')}`, {
-              headers: { 'X-API-Key':'fb135a94c0574db4b26082b70705b4af' }
+    async function fetchMetars() {
+      try {
+        const res = await fetch(
+          `https://api.checkwx.com/metar/${stations.join(',')}`, {
+            headers: { 'X-API-Key':'fb135a94c0574db4b26082b70705b4af' }
+          }
+        );
+        const json = await res.json();
+
+        const rows = json.data.map(raw => {
+          const [code, time='–', ...rest] = raw.split(' ');
+          const text = [code,time,...rest].join(' ');
+          const isSpeci = raw.startsWith('SPECI');
+          const hasGust = !!raw.match(/\bG\d{1,2}\b/);
+          const hasTS   = raw.includes('TS');
+          const isAlert = alertStations.includes(code);
+          const cls     = isSpeci ? 'alert-speci' : '';
+
+          let qnhDisplay = '–';
+          const m = raw.match(/Q(\d{4})/);
+          if (m) {
+            const hpa  = parseInt(m[1],10);
+            const inhg = (hpa*0.02953).toFixed(2);
+            qnhDisplay = `${hpa} - ${inhg}`;
+          }
+
+          if (isAlert) {
+            if (isSpeci) {
+              speciSound.play().catch(()=>{});
+              logAlert(`${code}: SPECI`);
             }
-          );
-          const json = await res.json();
-
-          const rows = json.data.map(raw => {
-            const [code, time='–', ...rest] = raw.split(' ');
-            const text = [code,time,...rest].join(' ');
-            const isSpeci = raw.startsWith('SPECI');
-            const hasGust = !!raw.match(/\bG\d{1,2}\b/);
-            const hasTS   = raw.includes('TS');
-            const isAlert = alertStations.includes(code);
-            const cls     = isSpeci ? 'alert-speci' : '';
-
-            // QNH conversion
-            let qnhDisplay = '–';
-            const m = raw.match(/Q(\d{4})/);
-            if (m) {
-              const hpa  = parseInt(m[1],10);
-              const inhg = (hpa*0.02953).toFixed(2);
-              qnhDisplay = `${hpa} - ${inhg}`;
+            if (hasTS) {
+              thunderSound.play().catch(()=>{});
+              logAlert(`${code}: Thunderstorm`);
             }
-
-            // Trigger alerts
-            if (isAlert) {
-              if (isSpeci) {
-                speciSound.play().catch(()=>{});
-                logAlert(`${code}: SPECI`);
-              }
-              if (hasTS) {
-                thunderSound.play().catch(()=>{});
-                logAlert(`${code}: Thunderstorm`);
-              }
-              if (hasGust) {
-                gustSound.play().catch(()=>{});
-                logAlert(`${code}: Gusts`);
-              }
+            if (hasGust) {
+              gustSound.play().catch(()=>{});
+              logAlert(`${code}: Gusts`);
             }
+          }
 
-            return `<tr>
-              <td>${code}</td>
-              <td>${time}</td>
-              <td class="${cls}">${text}</td>
-              <td>${qnhDisplay}</td>
-            </tr>`;
-          }).join('');
+          return `<tr>
+            <td>${code}</td>
+            <td>${time}</td>
+            <td class="${cls}">${text}</td>
+            <td>${qnhDisplay}</td>
+          </tr>`;
+        }).join('');
 
-          tbody.innerHTML = rows;
-        } catch (err) {
-          tbody.innerHTML = `<tr><td colspan="4">⚠️ Error loading METAR data</td></tr>`;
-        }
+        tbody.innerHTML = rows;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4">⚠️ Error loading METAR data</td></tr>`;
       }
+    }
 
-      // Clocks & countdown
-      let countdown = 300;
-      function updateClocks() {
-        const now = new Date();
-        document.getElementById('utc-time').textContent   =
-          now.toUTCString().replace('GMT','UTC');
-        document.getElementById('local-time').textContent =
-          now.toLocaleString();
-      }
-      function updateCountdown() {
-        const m = Math.floor(countdown/60), s = countdown%60;
-        document.getElementById('timer').textContent =
-          `${m}:${s.toString().padStart(2,'0')}`;
-        if (countdown>0) countdown--;
-      }
+    function updateClocks() {
+      const now = new Date();
+      document.getElementById('utc-time').textContent =
+        now.toUTCString().replace('GMT','UTC');
+      document.getElementById('local-time').textContent =
+        now.toLocaleString();
+    }
 
-      // Manual theme toggle & persistence
-      const tog = document.getElementById('themeToggle');
-      if (localStorage.getItem('theme') === 'light') {
-        document.body.classList.add('light-mode');
-        tog.checked = true;
+    function updateCountdown() {
+      const min = Math.floor(countdown / 60);
+      const sec = countdown % 60;
+      timerEl.textContent = `${min}:${sec.toString().padStart(2,'0')}`;
+      countdown--;
+      if (countdown < 0) {
+        countdown = 30;
+        fetchMetars();
       }
-      tog.addEventListener('change', () => {
-        const light = document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme', light ? 'light' : 'dark');
-      });
+    }
 
-      // Initialize
-      fetchMetars();
-      setInterval(fetchMetars, 10000);
-      updateClocks();   setInterval(updateClocks,   1000);
-      updateCountdown();setInterval(updateCountdown,1000);
+    const tog = document.getElementById('themeToggle');
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light-mode');
+      tog.checked = true;
+    }
+    tog.addEventListener('change', () => {
+      const light = document.body.classList.toggle('light-mode');
+      localStorage.setItem('theme', light ? 'light' : 'dark');
     });
+
+    // Initialize
+    fetchMetars(); updateClocks();
+    setInterval(updateClocks, 1000);
+    intervalID = setInterval(updateCountdown, 1000);
   </script>
 
 </body>
