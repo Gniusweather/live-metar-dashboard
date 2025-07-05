@@ -2,318 +2,199 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Caribbean & Venezuela METAR Dashboard</title>
-
-  <!-- Import Inter font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
+  <title>CAR/VEN METAR Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
-      line-height: 1.6;
-      background-color: #101820;
+      background: #101820;
       color: #f2f2f2;
       margin: 0;
-      padding: 40px;
-      transition: background-color 0.3s, color 0.3s;
+      padding: 24px;
+      font-size: 1.6rem;
     }
-
     h1 {
-      font-weight: 700;
       text-align: center;
-      font-size: 2rem;
+      font-size: 2.8rem;
       margin-bottom: 1rem;
     }
-
-    #clocks, #countdown, #last-updated {
+    #clocks, #countdown {
       text-align: center;
-      margin: 1rem 0 0.5rem;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
     }
-    #clocks {
-      font-size: 1.5rem;
-      color: #8ecfff;
-    }
-    #countdown { font-size: 0.95rem; color: #ffcc66; }
-    #last-updated { font-size: 0.85rem; color: #66ffcc; }
-
-    #alert-banner {
-      display: none;
-      background-color: #d00;
-      color: #fff;
-      font-weight: 600;
-      text-align: center;
-      padding: 0.75rem;
-      margin-bottom: 1.5rem;
-      border-radius: 4px;
-    }
-
-    .theme-toggle {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
+    #countdown { color: #ffcc66; }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 2rem;
+      font-family: monospace;
+      font-size: 1.4rem;
+      margin-top: 1rem;
     }
     th, td {
-      padding: 0.75rem;
+      padding: 12px;
       border: 1px solid #2a3b47;
       text-align: left;
     }
     th {
-      background-color: #003b5a;
-      font-weight: 600;
+      background: #003b5a;
       color: #fff;
     }
-    tr:hover td {
-      background-color: #1c2a35;
+    td.alert {
+      background: #850000;
+      color: #fff;
+      font-weight: bold;
     }
-
-    /* Badge styles */
-    .badge {
-      display: inline-block;
-      padding: 0.2rem 0.6rem;
-      border-radius: 999px;
-      font-size: 0.9rem;
-      font-weight: 600;
+    td.bold-time {
+      font-weight: bold;
+      color: #ffff99;
     }
-    .badge-wind { background-color: #ff6666; color: #fff; }
-    .badge-vis  { background-color: #ffcc00; color: #101820; }
-
+    #converter {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-top: 2rem;
+    }
+    #converter input {
+      padding: 6px 10px;
+      font-size: 1.2rem;
+      border-radius: 6px;
+      border: none;
+      margin-right: 8px;
+    }
+    #converter span {
+      font-weight: bold;
+      color: #66ffcc;
+    }
     footer {
       text-align: center;
-      font-size: 0.9rem;
-      color: #aaa;
+      font-size: 1.1rem;
+      margin-top: 2rem;
+      color: #777;
     }
-
-    /* Light mode overrides */
-    body.light-mode {
-      background-color: #f2f2f2;
-      color: #101820;
-    }
-    body.light-mode th { background-color: #d0d0d0; color: #101820; }
-    body.light-mode td { background-color: #fff; color: #101820; }
-    body.light-mode #clocks { color: #003b5a; }
-    body.light-mode #countdown { color: #cc6600; }
-    body.light-mode #last-updated { color: #007755; }
-    body.light-mode #alert-banner { background-color: #aa0000; }
   </style>
 </head>
 <body>
 
-  <h1>Caribbean & Venezuela – Structured METAR Reports</h1>
+  <h1>CAR/VEN METAR</h1>
 
   <div id="clocks">
-    UTC Time: <span id="utc-time">–</span> | Local Time: <span id="local-time">–</span>
+    UTC: <span id="utc">–</span> | Local: <span id="local">–</span>
   </div>
   <div id="countdown">
-    Next update in: <span id="timer">–</span>
-  </div>
-  <div id="last-updated">
-    Last updated: <span id="updated-time">–</span> UTC
-  </div>
-
-  <div id="alert-banner">
-    ⚠️ Alert: High wind, low visibility or precipitation at TNCA / TNCC!
-  </div>
-
-  <div class="theme-toggle">
-    <label>
-      <input type="checkbox" id="themeToggle" />
-      Toggle Light/Dark Mode
-    </label>
+    Next refresh in <span id="timer">30</span> seconds
   </div>
 
   <table>
     <thead>
       <tr>
-        <th>Airport</th>
-        <th>Time (UTC)</th>
-        <th>Wind</th>
-        <th>Visibility</th>
-        <th>Clouds</th>
-        <th>Temp / Dew</th>
-        <th>QNH (hPa – inHg)</th>
-        <th>Remarks</th>
+        <th>ICAO</th><th>Time</th><th>Wind</th><th>Vis</th>
+        <th>Wx</th><th>Clouds</th><th>Temp/Dew</th><th>QNH</th>
       </tr>
     </thead>
-    <tbody id="metar-data">
-      <tr><td colspan="8">Loading METAR data…</td></tr>
+    <tbody id="data">
+      <tr><td colspan="8">Loading…</td></tr>
     </tbody>
   </table>
 
-  <footer>&copy; 2025 Caribbean & Venezuela Aviation Weather</footer>
+  <div id="converter">
+    <label for="hpa">Convert hPa:</label>
+    <input type="number" id="hpa" min="900" max="1100" placeholder="1013" />
+    ➝ inHg: <span id="qnh">–</span>
+  </div>
+
+  <footer>&copy; 2025 CAR/VEN Aviation Weather</footer>
 
   <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const stations      = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
-      const watchStations = ['TNCA','TNCC'];
-      const rainPattern   = /\b(?:SHRA|RA)\b/;
-      const thunderPattern= /\bTS(?:RA)?\b/;
+    const utcEl     = document.getElementById('utc');
+    const locEl     = document.getElementById('local');
+    const timerEl   = document.getElementById('timer');
+    const hpaEl     = document.getElementById('hpa');
+    const qnhEl     = document.getElementById('qnh');
+    const dataEl    = document.getElementById('data');
+    const stations  = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+    const watch     = ['TNCA','TNCC'];
+    const wxCodes   = /\b(TSRA|TS|SHRA|RA|DZ|FG|BR|SN|GR|SQ|FC|VC|MI|BC|BL|DR|UP)\b/g;
+    let countdown   = 30;
+    const prevTimes = {};
+    const prevMetars= {};
 
-      const tbody         = document.getElementById('metar-data');
-      const updatedTimeEl = document.getElementById('updated-time');
-      const banner        = document.getElementById('alert-banner');
-
-      const windSound     = new Audio('https://actions.google.com/sounds/v1/weather/windy.ogg');
-      const rainSound     = new Audio('https://actions.google.com/sounds/v1/weather/rain.ogg');
-      const thunderSound  = new Audio('https://actions.google.com/sounds/v1/weather/thunder_crack.ogg');
-
-      let countdown = 30;
-
-      async function fetchMetars() {
-        try {
-          const res  = await fetch(
-            `https://api.checkwx.com/metar/${stations.join(',')}`,
-            { headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' } }
-          );
-          const json = await res.json();
-          updatedTimeEl.textContent = new Date()
-            .toISOString()
-            .split('.')[0]
-            .replace('T',' ');
-
-          let foundAlert = false;
-          let playType   = 'wind';
-
-          const rows = json.data.map(raw => {
-            const parts        = raw.split(' ');
-            const code         = parts[0] || '–';
-            const time         = parts[1] || '–';
-
-            let wind           = '–';
-            let windSpeed      = 0;
-            let windGust       = 0;
-            let visibility     = '–';
-            let visibilityVal  = Infinity;
-            let cloudsArr      = [];
-            let tempDew        = '–';
-            let pressureCell   = '–';
-            let remarksArr     = [];
-            let inRemarks      = false;
-
-            for (let i = 2; i < parts.length; i++) {
-              const tk = parts[i];
-              if (inRemarks) {
-                remarksArr.push(tk);
-              }
-              else if (/^\d{3}\d{2,3}(?:G\d{2,3})?KT$/.test(tk)) {
-                wind = tk;
-                const m = tk.match(/^(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT$/);
-                windSpeed = m ? parseInt(m[2],10) : 0;
-                windGust  = m && m[3] ? parseInt(m[3],10) : 0;
-              }
-              else if (/^\d{4}$/.test(tk)) {
-                visibility    = tk;
-                visibilityVal = parseInt(tk,10);
-              }
-              else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(tk)) {
-                cloudsArr.push(tk);
-              }
-              else if (/^M?\d{2}\/M?\d{2}$/.test(tk)) {
-                tempDew = tk;
-              }
-              else if (/^Q\d{4}$/.test(tk)) {
-                const hpa  = parseInt(tk.slice(1), 10);
-                const inhg = (hpa * 0.02953).toFixed(2);
-                pressureCell = `${hpa} – ${inhg}`;
-              }
-              else if (tk === 'RMK') {
-                inRemarks = true;
-              }
-              else {
-                remarksArr.push(tk);
-              }
-            }
-
-            // badge displays
-            const windDisplay = windSpeed > 15
-              ? `<span class="badge badge-wind">${wind}</span>`
-              : wind;
-
-            const visDisplay = visibilityVal <= 5000
-              ? `<span class="badge badge-vis">${visibility}</span>`
-              : visibility;
-
-            // alert conditions
-            const hasRain    = rainPattern.test(raw);
-            const hasThunder = thunderPattern.test(raw);
-            const alertCond  = watchStations.includes(code)
-                             && (windSpeed > 15 || windGust >= 25
-                               || visibilityVal <= 5000
-                               || hasRain || hasThunder);
-
-            if (alertCond) {
-              foundAlert = true;
-              playType   = hasThunder ? 'thunder'
-                         : hasRain    ? 'rain'
-                         : 'wind';
-            }
-
-            return `
-              <tr>
-                <td>${code}</td>
-                <td>${time}</td>
-                <td>${windDisplay}</td>
-                <td>${visDisplay}</td>
-                <td>${cloudsArr.join(' ') || '–'}</td>
-                <td>${tempDew}</td>
-                <td>${pressureCell}</td>
-                <td>${remarksArr.join(' ') || '–'}</td>
-              </tr>
-            `;
-          }).join('');
-
-          tbody.innerHTML    = rows;
-          banner.style.display = foundAlert ? 'block' : 'none';
-          if (foundAlert) {
-            if (playType === 'thunder') thunderSound.play().catch(()=>{});
-            else if (playType === 'rain') rainSound.play().catch(()=>{});
-            else windSound.play().catch(()=>{});
-          }
-          countdown = 30;
-        }
-        catch (e) {
-          tbody.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR data</td></tr>`;
-          console.error('Fetch error:', e.message);
-        }
-      }
-
-      function updateClocks() {
-        const now = new Date();
-        document.getElementById('utc-time').textContent   =
-          now.toUTCString().replace('GMT','UTC');
-        document.getElementById('local-time').textContent =
-          now.toLocaleString();
-      }
-
-      function updateCountdown() {
-        const m = Math.floor(countdown/60),
-              s = countdown % 60;
-        document.getElementById('timer').textContent =
-          `${m}:${s.toString().padStart(2,'0')}`;
-        if (countdown>0) countdown--;
-      }
-
-      // theme toggle
-      const tog = document.getElementById('themeToggle');
-      if (localStorage.getItem('theme') === 'light') {
-        document.body.classList.add('light-mode');
-        tog.checked = true;
-      }
-      tog.addEventListener('change', () => {
-        const light = document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme', light?'light':'dark');
-      });
-
-      // initialize
-      fetchMetars();
-      setInterval(fetchMetars, 30000);
-      updateClocks();   setInterval(updateClocks,   1000);
-      updateCountdown();setInterval(updateCountdown,1000);
+    hpaEl.addEventListener('input', () => {
+      const val = parseFloat(hpaEl.value);
+      if (!isNaN(val)) qnhEl.textContent = (val * 0.02953).toFixed(2);
+      else qnhEl.textContent = '–';
     });
+
+    setInterval(() => {
+      const now = new Date();
+      utcEl.textContent = now.toISOString().split('.')[0].replace('T',' ');
+      locEl.textContent = now.toLocaleString();
+      timerEl.textContent = countdown;
+      if (countdown > 0) countdown--;
+    }, 1000);
+
+    async function update() {
+      try {
+        countdown = 30;
+        const res = await fetch(
+          `https://api.checkwx.com/metar/${stations.join(',')}`,
+          { headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' } }
+        );
+        const { data } = await res.json();
+        let html = '';
+
+        data.forEach(raw => {
+          const t     = raw.split(' ');
+          const code  = t[0] || '–';
+          const time  = t[1] || '–';
+          let wind='–', ws=0, wg=0, vis='–', vv=1e6, wx='–';
+          let cl=[], td='–', qnh='–';
+          const wxMatch = raw.match(wxCodes);
+          if (wxMatch) wx = wxMatch.join(' ');
+
+          for (let i=2;i<t.length;i++) {
+            const tok = t[i];
+            if (/^\d{3}\d{2,3}(?:G\d{2,3})?KT$/.test(tok)) {
+              wind = tok;
+              const m = tok.match(/^(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT$/);
+              ws = m ? +m[2] : 0;
+              wg = m && m[3] ? +m[3] : 0;
+            } else if (/^\d{4}$/.test(tok)) vis = tok, vv = +tok;
+            else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(tok)) cl.push(tok);
+            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
+            else if (/^Q\d{4}$/.test(tok)) {
+              const h = +tok.slice(1);
+              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
+            }
+          }
+
+          const alertWind = watch.includes(code) && (ws > 15 || wg >= 25);
+          const alertVis  = watch.includes(code) && (vv <= 5000);
+          const alertWx   = watch.includes(code) && (/TS|SHRA|RA/.test(wx));
+          const timeChanged = time !== prevTimes[code];
+          prevTimes[code] = time;
+
+          html += `<tr>
+            <td>${code}</td>
+            <td class="${timeChanged ? 'bold-time' : ''}">${time}</td>
+            <td class="${alertWind ? 'alert' : ''}">${wind}</td>
+            <td class="${alertVis ? 'alert' : ''}">${vis}</td>
+            <td class="${alertWx  ? 'alert' : ''}">${wx}</td>
+            <td>${cl.join(' ')||'–'}</td>
+            <td>${td}</td>
+            <td>${qnh}</td>
+          </tr>`;
+        });
+
+        dataEl.innerHTML = html;
+      }
+      catch (e) {
+        dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+        console.error(e);
+      }
+    }
+
+    update();
+    setInterval(update, 30000);
   </script>
 
 </body>
