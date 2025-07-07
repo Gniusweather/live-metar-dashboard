@@ -1,34 +1,23 @@
+<!-- Updated: Raw METAR now non-bold; TAF from TNCB and TNCC displayed in compact format -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>CAR/VEN METAR & TAF + Bonaire Visibility</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
       background: #101820;
       color: #f2f2f2;
-      margin: 0; padding: 24px;
+      margin: 0;
+      padding: 24px;
       font-size: 1.6rem;
     }
-
     h1 {
       text-align: center;
       font-size: 2.8rem;
       margin-bottom: 1rem;
     }
-
-    #clocks, #countdown {
-      text-align: center;
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-    }
-
-    #countdown {
-      color: #ffcc66;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -36,140 +25,83 @@
       font-size: 1.4rem;
       margin-top: 1rem;
     }
-
     th, td {
       padding: 12px;
       border: 1px solid #2a3b47;
       text-align: left;
+      font-weight: bold;
+      color: #f2f2f2;
     }
-
     th {
       background: #003b5a;
       color: #fff;
     }
-
+    td.station-code {
+      font-size: 1.8rem;
+      color: #66ffcc;
+    }
     td.alert {
       background: #850000;
       color: #fff;
-      font-weight: bold;
     }
-
     td.bold-time {
-      font-weight: bold;
-      color: #ffff99;
+      background: #ffff99;
+      color: #101820;
     }
-
-    #converter {
-      text-align: center;
-      font-size: 1.4rem;
-      margin-top: 2rem;
+    tr.raw-row td {
+      background: #1a1a1a;
+      font-weight: normal;
     }
-
-    #converter input {
-      padding: 6px 10px;
+    .raw-code {
+      font-family: monospace;
       font-size: 1.2rem;
-      border-radius: 6px;
-      border: none;
-      margin-right: 8px;
+      white-space: pre-wrap;
     }
-
-    #converter span {
-      font-weight: bold;
-      color: #66ffcc;
-    }
-
-    #tafs {
+    #bonaire-visibility {
       margin-top: 1rem;
-      font-size: 1.2rem;
+      text-align: center;
+      font-family: monospace;
     }
-
-    #tafs h2 {
+    #bonaire-visibility .label {
+      color: #999;
+      font-size: 1rem;
+    }
+    #vis-value {
       font-size: 1.6rem;
-      margin-bottom: 0.25rem;
+      font-weight: bold;
+      color: #ff9900;
     }
-
-    #taf-data {
+    #compact-taf {
+      margin-top: 1rem;
       font-family: monospace;
       font-size: 1rem;
-      line-height: 1.2;
-      max-height: 200px;
-      overflow-y: auto;
-      padding: 8px;
-      border: 1px solid #2a3b47;
-      background: #1a1a1a;
+      line-height: 1.4;
+      border-top: 1px solid #2a3b47;
+      padding-top: 8px;
     }
-
-    #taf-data div {
-      margin-bottom: 0.25rem;
+    #compact-taf div {
+      margin-bottom: 0.5rem;
     }
-
-    #taf-data strong {
+    #compact-taf strong {
       display: inline-block;
       width: 50px;
       color: #66ffcc;
     }
-
-    #taf-data pre {
+    #compact-taf pre {
       display: inline;
       margin: 0;
       white-space: nowrap;
-    }
-
-    #bonaire-visibility {
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      font-family: monospace;
-      text-align: center;
-    }
-
-    #bonaire-visibility .label {
-      color: #999;
-    }
-
-    #bonaire-visibility #vis-value {
-      color: #ff9900;
-      font-weight: bold;
-      margin-left: 6px;
-      padding: 2px 4px;
-      border-radius: 2px;
-    }
-
-    #bonaire-visibility #vis-value.highlight {
-      background: #ff9900;
-      color: #101820;
-    }
-
-    footer {
-      text-align: center;
-      font-size: 1.1rem;
-      margin-top: 2rem;
-      color: #777;
     }
   </style>
 </head>
 <body>
 
   <h1>CAR/VEN METAR & TAF</h1>
-
-  <div id="clocks">
-    UTC: <span id="utc">–</span> | Local: <span id="local">–</span>
-  </div>
-
-  <div id="countdown">
-    Next refresh in <span id="timer">30</span> seconds
-  </div>
-
   <table>
     <thead>
       <tr>
-        <th>ICAO</th>
-        <th>Time</th>
-        <th>Wind</th>
-        <th>Vis</th>
-        <th>Wx</th>
-        <th>Clouds</th>
-        <th>Temp/Dew</th>
-        <th>QNH</th>
+        <th>ICAO</th><th>Time</th><th>Wind</th><th>Vis</th>
+        <th>Wx</th><th>Clouds</th><th>Temp/Dew</th><th>QNH</th>
       </tr>
     </thead>
     <tbody id="data">
@@ -177,152 +109,93 @@
     </tbody>
   </table>
 
-  <div id="converter">
-    <label for="hpa">Convert hPa:</label>
-    <input type="number" id="hpa" min="900" max="1100" placeholder="1013" />
-    ➝ inHg: <span id="qnh">–</span>
+  <div id="bonaire-visibility">
+    <span class="label">Bonaire Visibility (m):</span>
+    <span id="vis-value">–</span>
   </div>
 
-  <div id="tafs">
-    <h2>TAF</h2>
-    <div id="taf-data">Loading…</div>
-
-    <div id="bonaire-visibility">
-      <span class="label">Bonaire Visibility (m):</span>
-      <span id="vis-value">–</span>
-    </div>
-  </div>
-
-  <footer>&copy; 2025 CAR/VEN Aviation Weather</footer>
+  <div id="compact-taf">Loading TAF…</div>
 
   <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
   <script>
-    const utcEl    = document.getElementById('utc'),
-          locEl    = document.getElementById('local'),
-          timerEl  = document.getElementById('timer'),
-          hpaEl    = document.getElementById('hpa'),
-          qnhEl    = document.getElementById('qnh'),
-          dataEl   = document.getElementById('data'),
-          tafEl    = document.getElementById('taf-data'),
-          visEl    = document.getElementById('vis-value'),
-          alarmEl  = document.getElementById('alarm');
+    const dataEl = document.getElementById('data'),
+          visEl  = document.getElementById('vis-value'),
+          tafEl  = document.getElementById('compact-taf'),
+          alarmEl = document.getElementById('alarm');
 
+    const API_KEY = 'fb135a94c0574db4b26082b70705b4af';
     const metarStations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
-    const tafStations   = ['TNCA','TNCB','TNCC'];
-    const watch         = ['TNCA'];
+    const tafStations   = ['TNCB','TNCC'];
+    const watchStation  = 'TNCA';
+    const wxCodes = /\b(?:VCSH|VC|TSRA|TS|SHRA|SH|RA|DZ|BR|FG|SQ|PO|FC)\b/g;
 
-    // capture full intensity tokens: -TSRA, +TSRA, TS, SHRA, RA
-    const wxCodes = /(?:^|\s)([+\-]?(?:TSRA|TS|SHRA|RA))(?=\s|$)/g;
-
-    let countdown = 30;
     const prevTimes = {};
 
-    // clocks & countdown
-    setInterval(() => {
-      const now = new Date();
-      utcEl.textContent   = now.toISOString().split('.')[0].replace('T',' ');
-      locEl.textContent   = now.toLocaleString();
-      timerEl.textContent = countdown > 0 ? countdown-- : 0;
-    }, 1000);
-
-    // hPa → inHg
-    hpaEl.addEventListener('input', () => {
-      const v = parseFloat(hpaEl.value);
-      qnhEl.textContent = !isNaN(v) ? (v * 0.02953).toFixed(2) : '–';
-    });
-
-    // fetch METAR every 30s
     async function updateMetar() {
       try {
-        countdown = 30;
         const res = await fetch(
           `https://api.checkwx.com/metar/${metarStations.join(',')}`,
-          { headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' } }
+          { headers: { 'X-API-Key': API_KEY } }
         );
         const { data } = await res.json();
         let html = '';
-        let soundAlarm = false;
+        let alert = false;
 
         data.forEach(raw => {
-          const t    = raw.split(' ');
+          const t = raw.split(' ');
           const code = t[0] || '–';
           const time = t[1] || '–';
-          let wind='–', ws=0, wg=0, vis='–', vv=1e6;
-          let wx='–', cl=[], td='–', qnh='–';
+          let wind = '–', ws = 0, wg = 0, vis = '–';
+          let wx = '–', cl = [], td = '–', qnh = '–';
 
-          // extract intensity + phenomenon
-          const matches = [...raw.matchAll(wxCodes)];
-          if (matches.length) {
-            wx = matches.map(m => m[1]).join(' ');
-          }
+          const wxMatch = raw.match(wxCodes) || [];
+          if (wxMatch.length) wx = wxMatch.join(' ');
 
           t.slice(2).forEach(tok => {
-            if (/^\d{3}\d{2,3}(?:G\d{2,3})?KT$/.test(tok)) {
-              wind = tok;
-              const m = tok.match(/^(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT$/);
-              ws = m ? +m[2] : 0;
-              wg = m && m[3] ? +m[3] : 0;
-            }
-            else if (/^\d{4}$/.test(tok)) {
-              vis = tok; vv = +tok;
-            }
-            else if (tok === '///') {
-              cl.push('///');
-            }
-            else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/.test(tok)) {
-              cl.push(tok);
-            }
-            else if (tok === 'TCU' || tok === 'VB') {
-              cl.push(tok);
-            }
-            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
-              td = tok;
-            }
+            if (/KT$/.test(tok)) wind = tok;
+            else if (/^\d{4}$/.test(tok)) vis = tok;
+            else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/.test(tok)) cl.push(tok);
+            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
             else if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
-              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
+              qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
             }
           });
-
-          // condition: TNCA & (gust ≥35kt OR wx in [-TSRA, TS, TSRA])
-          if (code === 'TNCA') {
-            const wxAlert = matches.some(m => ['-TSRA','TS','TSRA'].includes(m[1]));
-            if (wg >= 35 || wxAlert) soundAlarm = true;
-          }
 
           const changed = time !== prevTimes[code];
           prevTimes[code] = time;
 
-          const aWind = code==='TNCA' && wg >= 35;
-          const aVis  = false;
-          const aWx   = code==='TNCA' && /(TS|TSRA|-TSRA)/.test(wx);
+          const alarmCondition = code === watchStation && (wind.includes('G') || wx.includes('TS') || wx.includes('SH') || wx.includes('VCSH'));
+          if (alarmCondition) alert = true;
 
           html += `<tr>
-            <td>${code}</td>
-            <td class="${changed ? 'bold-time' : ''}">${time}</td>
-            <td class="${aWind ? 'alert' : ''}">${wind}</td>
+            <td class="station-code">${code}</td>
+            <td class="${changed?'bold-time':''}">${time}</td>
+            <td class="${alarmCondition?'alert':''}">${wind}</td>
             <td>${vis}</td>
-            <td class="${aWx ? 'alert' : ''}">${wx}</td>
+            <td class="${alarmCondition?'alert':''}">${wx}</td>
             <td>${cl.join(' ') || '–'}</td>
             <td>${td}</td>
             <td>${qnh}</td>
           </tr>`;
+          html += `<tr class="raw-row">
+            <td colspan="8"><pre class="raw-code">${raw}</pre></td>
+          </tr>`;
         });
 
         dataEl.innerHTML = html;
-        if (soundAlarm) alarmEl.play();
+        if (alert) alarmEl.play();
       } catch {
         dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
       }
     }
 
-    // fetch TAF every 5min
     async function updateTaf() {
       try {
         const res = await fetch(
           `https://api.checkwx.com/taf/${tafStations.join(',')}`,
-          { headers: { 'X-API-Key': 'fb135a94c0574db4b26082b70705b4af' } }
+          { headers: { 'X-API-Key': API_KEY } }
         );
         const { data } = await res.json();
         let html = '';
@@ -336,7 +209,6 @@
       }
     }
 
-    // fetch Bonaire visibility every 1min
     async function updateBonaireVis() {
       try {
         const proxy  = 'https://api.allorigins.win/raw?url=';
@@ -359,7 +231,6 @@
       }
     }
 
-    // initial load & intervals
     updateMetar();      setInterval(updateMetar, 30000);
     updateTaf();        setInterval(updateTaf, 300000);
     updateBonaireVis(); setInterval(updateBonaireVis, 60000);
