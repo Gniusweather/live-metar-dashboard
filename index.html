@@ -191,6 +191,7 @@
     const tafStations   = ['TNCB','TNCC'];
     const watchStation  = 'TNCA';
     const wxCodes       = /[+-]?(?:VCSH|TSRA|SHRA|TS|SH|RA|DZ|BR|FG|SQ|PO|FC)/g;
+    const cloudPattern  = /^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?(\/{3})?$/;
     let prevTimes       = {};
     const metarInterval = 30;
     let lastTs          = Date.now();
@@ -221,6 +222,8 @@
           const code = toks[0] || '–',
                 time = toks[1] || '–';
           let wind='–', vis='–', td='–', qnh='–', clouds=[];
+
+          // weather intensity
           const wxMatch = raw.match(wxCodes) || [];
           const wxDisplay = wxMatch.length
             ? wxMatch.map(w => {
@@ -230,30 +233,34 @@
               }).join('')
             : '–';
 
+          // parse tokens
           toks.slice(2).forEach(tok => {
-            if (/KT$/.test(tok)) wind=tok;
-            else if (/^\d{4}$/.test(tok)) vis=tok;
-            else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/.test(tok)||tok==='///') clouds.push(tok);
-            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td=tok;
+            if (/KT$/.test(tok)) wind = tok;
+            else if (/^\d{4}$/.test(tok)) vis = tok;
+            else if (cloudPattern.test(tok)) clouds.push(tok);
+            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
             else if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
               qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
             }
           });
 
+          // clouds styling
           const cloudsDisplay = clouds.length
             ? clouds.map(c => {
-                let cls='';
-                if (c==='///') cls='nil';
-                else if (c.endsWith('TCU')) cls='tcu';
-                else if (c.endsWith('CB')) cls='cb';
+                let cls = '';
+                if (c.includes('///')) cls = 'nil';
+                else if (c.endsWith('TCU')) cls = 'tcu';
+                else if (c.endsWith('CB'))  cls = 'cb';
                 return `<span class="${cls}">${c}</span>`;
               }).join('')
             : '–';
 
+          // highlight time change
           const changed = time !== prevTimes[code];
           prevTimes[code] = time;
 
+          // alarm logic
           const hasWxAlarm = wxMatch.some(w=>/VCSH|TS|SH/.test(w));
           const alarmCond  = code===watchStation && (wind.includes('G')||hasWxAlarm);
           if (alarmCond) alert = true;
@@ -307,7 +314,7 @@
         const text   = await res.text();
         const doc    = new DOMParser().parseFromString(text,'text/html');
         const row    = Array.from(doc.querySelectorAll('tr'))
-                         .find(tr=>tr.textContent.includes('Visibility (m)'));
+                         .find(tr => tr.textContent.includes('Visibility (m)'));
         let v = '–';
         if (row) {
           const cell = row.querySelectorAll('td')[1];
@@ -328,6 +335,7 @@
       });
     }
 
+    // initialize
     updateMetar();      setInterval(updateMetar,      metarInterval * 1000);
     updateBonaireVis(); setInterval(updateBonaireVis, 60000);
     updateTaf();        setInterval(updateTaf,        300000);
