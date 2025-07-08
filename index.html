@@ -1,4 +1,3 @@
-<!-- Updated: Raw METAR now non-bold; TAF from TNCB and TNCC displayed in compact format -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +33,6 @@
     }
     th {
       background: #003b5a;
-      color: #fff;
     }
     td.station-code {
       font-size: 1.8rem;
@@ -48,6 +46,27 @@
       background: #ffff99;
       color: #101820;
     }
+
+    /* weather intensity coloring */
+    td.wx span {
+      display: inline-block;
+      margin-right: 0.4em;
+      font-family: monospace;
+    }
+    td.wx span.light { color: #ffff66; }
+    td.wx span.normal { color: #66ffcc; }
+    td.wx span.heavy  { color: #ff3333; }
+
+    /* cloud layer styling */
+    td.clouds span {
+      display: inline-block;
+      margin-right: 0.4em;
+      font-family: monospace;
+    }
+    td.clouds span.nil { color: #999; }
+    td.clouds span.tcu { text-decoration: underline; color: #ffcc00; }
+    td.clouds span.cb  { font-weight: bold;     color: #ff6600; }
+
     tr.raw-row td {
       background: #1a1a1a;
       font-weight: normal;
@@ -57,39 +76,36 @@
       font-size: 1.2rem;
       white-space: pre-wrap;
     }
+
+    /* Bonaire visibility under table */
     #bonaire-visibility {
       margin-top: 1rem;
-      text-align: center;
       font-family: monospace;
-    }
-    #bonaire-visibility .label {
-      color: #999;
       font-size: 1rem;
-    }
-    #vis-value {
-      font-size: 1.6rem;
-      font-weight: bold;
+      text-align: center;
       color: #ff9900;
     }
+
+    /* compact, vertical TAF column */
     #compact-taf {
       margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
       font-family: monospace;
-      font-size: 1rem;
+      font-size: 1.2rem;
       line-height: 1.4;
       border-top: 1px solid #2a3b47;
       padding-top: 8px;
     }
     #compact-taf div {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
     }
     #compact-taf strong {
       display: inline-block;
       width: 50px;
       color: #66ffcc;
     }
-    #compact-taf pre {
-      display: inline;
-      margin: 0;
+    #compact-taf span {
       white-space: nowrap;
     }
   </style>
@@ -97,11 +113,18 @@
 <body>
 
   <h1>CAR/VEN METAR & TAF</h1>
+
   <table>
     <thead>
       <tr>
-        <th>ICAO</th><th>Time</th><th>Wind</th><th>Vis</th>
-        <th>Wx</th><th>Clouds</th><th>Temp/Dew</th><th>QNH</th>
+        <th>ICAO</th>
+        <th>Time</th>
+        <th>Wind</th>
+        <th>Vis</th>
+        <th>Wx</th>
+        <th>Clouds</th>
+        <th>Temp/Dew</th>
+        <th>QNH</th>
       </tr>
     </thead>
     <tbody id="data">
@@ -109,85 +132,131 @@
     </tbody>
   </table>
 
-  <div id="bonaire-visibility">
-    <span class="label">Bonaire Visibility (m):</span>
-    <span id="vis-value">–</span>
-  </div>
+  <div id="bonaire-visibility">Bonaire Visibility: –</div>
 
   <div id="compact-taf">Loading TAF…</div>
 
-  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+  <audio id="alarm"
+         src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+         preload="auto"></audio>
 
   <script>
-    const dataEl = document.getElementById('data'),
-          visEl  = document.getElementById('vis-value'),
-          tafEl  = document.getElementById('compact-taf'),
-          alarmEl = document.getElementById('alarm');
+    const dataEl   = document.getElementById('data'),
+          visEl    = document.getElementById('bonaire-visibility'),
+          tafEl    = document.getElementById('compact-taf'),
+          alarmEl  = document.getElementById('alarm');
 
-    const API_KEY = 'fb135a94c0574db4b26082b70705b4af';
+    const API_KEY       = 'fb135a94c0574db4b26082b70705b4af';
     const metarStations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
     const tafStations   = ['TNCB','TNCC'];
     const watchStation  = 'TNCA';
-    const wxCodes = /\b(?:VCSH|VC|TSRA|TS|SHRA|SH|RA|DZ|BR|FG|SQ|PO|FC)\b/g;
-
-    const prevTimes = {};
+    const wxCodes       = /[+-]?(?:VCSH|TSRA|SHRA|TS|SH|RA|DZ|BR|FG|SQ|PO|FC)/g;
+    const prevTimes     = {};
 
     async function updateMetar() {
       try {
-        const res = await fetch(
+        const res  = await fetch(
           `https://api.checkwx.com/metar/${metarStations.join(',')}`,
           { headers: { 'X-API-Key': API_KEY } }
         );
         const { data } = await res.json();
-        let html = '';
-        let alert = false;
+        let html = '', alert = false;
 
         data.forEach(raw => {
-          const t = raw.split(' ');
-          const code = t[0] || '–';
-          const time = t[1] || '–';
-          let wind = '–', ws = 0, wg = 0, vis = '–';
-          let wx = '–', cl = [], td = '–', qnh = '–';
+          const toks = raw.split(' ');
+          const code = toks[0] || '–';
+          const time = toks[1] || '–';
+          let wind = '–', vis = '–', td = '–', qnh = '–';
+          const clouds = [];
 
+          // weather intensity
           const wxMatch = raw.match(wxCodes) || [];
-          if (wxMatch.length) wx = wxMatch.join(' ');
+          let wxDisplay = '–';
+          if (wxMatch.length) {
+            wxDisplay = wxMatch.map(w => {
+              const cls = w.startsWith('+') ? 'heavy'
+                        : w.startsWith('-') ? 'light'
+                        : 'normal';
+              return `<span class="${cls}">${w}</span>`;
+            }).join('');
+          }
 
-          t.slice(2).forEach(tok => {
-            if (/KT$/.test(tok)) wind = tok;
-            else if (/^\d{4}$/.test(tok)) vis = tok;
-            else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/.test(tok)) cl.push(tok);
+          // parse other tokens
+          toks.slice(2).forEach(tok => {
+            if (/KT$/.test(tok))          wind = tok;
+            else if (/^\d{4}$/.test(tok)) vis  = tok;
+            else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/.test(tok)
+                     || tok === '///')   clouds.push(tok);
             else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
             else if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
-              qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
+              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
             }
           });
 
+          // style cloud tokens
+          const cloudsDisplay = clouds.length
+            ? clouds.map(c => {
+                let cls = '';
+                if (c === '///')         cls = 'nil';
+                else if (c.endsWith('TCU')) cls = 'tcu';
+                else if (c.endsWith('CB'))  cls = 'cb';
+                return `<span class="${cls}">${c}</span>`;
+              }).join('')
+            : '–';
+
+          // highlight time change
           const changed = time !== prevTimes[code];
           prevTimes[code] = time;
 
-          const alarmCondition = code === watchStation && (wind.includes('G') || wx.includes('TS') || wx.includes('SH') || wx.includes('VCSH'));
-          if (alarmCondition) alert = true;
+          // alarm condition
+          const hasWxAlarm = wxMatch.some(w => /VCSH|TS|SH/.test(w));
+          const alarmCond  = code === watchStation &&
+                             (wind.includes('G') || hasWxAlarm);
+          if (alarmCond) alert = true;
 
-          html += `<tr>
-            <td class="station-code">${code}</td>
-            <td class="${changed?'bold-time':''}">${time}</td>
-            <td class="${alarmCondition?'alert':''}">${wind}</td>
-            <td>${vis}</td>
-            <td class="${alarmCondition?'alert':''}">${wx}</td>
-            <td>${cl.join(' ') || '–'}</td>
-            <td>${td}</td>
-            <td>${qnh}</td>
-          </tr>`;
-          html += `<tr class="raw-row">
-            <td colspan="8"><pre class="raw-code">${raw}</pre></td>
-          </tr>`;
+          html += `
+            <tr>
+              <td class="station-code">${code}</td>
+              <td class="${changed?'bold-time':''}">${time}</td>
+              <td class="${alarmCond?'alert':''}">${wind}</td>
+              <td>${vis}</td>
+              <td class="wx ${alarmCond?'alert':''}">${wxDisplay}</td>
+              <td class="clouds">${cloudsDisplay}</td>
+              <td>${td}</td>
+              <td>${qnh}</td>
+            </tr>
+            <tr class="raw-row">
+              <td colspan="8"><pre class="raw-code">${raw}</pre></td>
+            </tr>`;
         });
 
         dataEl.innerHTML = html;
         if (alert) alarmEl.play();
       } catch {
         dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+      }
+    }
+
+    async function updateBonaireVis() {
+      try {
+        const proxy  = 'https://api.allorigins.win/raw?url=';
+        const target = encodeURIComponent(
+          'https://www.knmidc.org/weather/bonaire/?Current'
+        );
+        const res   = await fetch(proxy + target);
+        const text  = await res.text();
+        const doc   = new DOMParser().parseFromString(text, 'text/html');
+        const row   = Array.from(doc.querySelectorAll('tr'))
+                         .find(tr => tr.textContent.includes('Visibility (m)'));
+        let v = '–';
+        if (row) {
+          const cell = row.querySelectorAll('td')[1];
+          if (cell) v = cell.textContent.trim();
+        }
+        visEl.textContent = `Bonaire Visibility: ${v}`;
+      } catch {
+        visEl.textContent = 'Bonaire Visibility: n/a';
       }
     }
 
@@ -200,8 +269,9 @@
         const { data } = await res.json();
         let html = '';
         data.forEach(raw => {
-          const code = raw.split(' ')[0] || '–';
-          html += `<div><strong>${code}</strong><pre>${raw}</pre></div>`;
+          const code    = raw.split(' ')[0] || '–';
+          const compact = raw.replace(`${code} `, '');
+          html += `<div><strong>${code}:</strong> <span>${compact}</span></div>`;
         });
         tafEl.innerHTML = html;
       } catch {
@@ -209,31 +279,9 @@
       }
     }
 
-    async function updateBonaireVis() {
-      try {
-        const proxy  = 'https://api.allorigins.win/raw?url=';
-        const target = encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current');
-        const res    = await fetch(proxy + target);
-        const text   = await res.text();
-        const doc    = new DOMParser().parseFromString(text,'text/html');
-        const row    = Array.from(doc.querySelectorAll('tr'))
-                          .find(tr => tr.textContent.includes('Visibility (m)'));
-        let v = '–';
-        if (row) {
-          const cell = row.querySelectorAll('td')[1];
-          if (cell) v = cell.textContent.trim();
-        }
-        visEl.textContent = v;
-        if (v === '37000') visEl.classList.add('highlight');
-        else               visEl.classList.remove('highlight');
-      } catch {
-        visEl.textContent = 'n/a';
-      }
-    }
-
-    updateMetar();      setInterval(updateMetar, 30000);
-    updateTaf();        setInterval(updateTaf, 300000);
+    updateMetar();      setInterval(updateMetar,      30000);
     updateBonaireVis(); setInterval(updateBonaireVis, 60000);
+    updateTaf();        setInterval(updateTaf,        300000);
   </script>
 </body>
 </html>
