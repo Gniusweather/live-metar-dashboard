@@ -25,8 +25,7 @@
     #timers span {
       margin: 0 0.5rem;
     }
-    #local-time,
-    #utc-time {
+    #local-time, #utc-time {
       color: #66ffcc;
       font-size: 1.4rem;
       font-weight: bold;
@@ -47,7 +46,7 @@
       padding: 12px;
       border: 1px solid #2a3b47;
       text-align: left;
-      font-weight: bold;
+      vertical-align: top;
       color: #f2f2f2;
     }
     th {
@@ -57,9 +56,16 @@
       font-size: 1.8rem;
       color: #66ffcc;
     }
-    td.alert {
-      background: #850000;
-      color: #fff;
+    .raw-row td {
+      background: #1a1a1a;
+      font-weight: normal;
+    }
+    .raw-code {
+      margin: 0.5em 0 0;
+      font-family: monospace;
+      font-size: 1rem;
+      white-space: pre-wrap;
+      color: #999;
     }
     td.bold-time {
       background: #ffff99;
@@ -70,7 +76,7 @@
       margin-right: 0.4em;
       font-family: monospace;
     }
-    td.wx span.light { color: #ffff66; }
+    td.wx span.light  { color: #ffff66; }
     td.wx span.normal { color: #66ffcc; }
     td.wx span.heavy  { color: #ff3333; }
     td.clouds span {
@@ -81,48 +87,37 @@
     td.clouds span.nil { color: #999; }
     td.clouds span.tcu { text-decoration: underline; color: #ffcc00; }
     td.clouds span.cb  { font-weight: bold;     color: #ff6600; }
-    tr.raw-row td {
-      background: #1a1a1a;
-      font-weight: normal;
-    }
-    .raw-code {
-      font-family: monospace;
-      font-size: 1.2rem;
-      white-space: pre-wrap;
-    }
-    /* pressure converter styling */
     #pressure-converter {
       margin: 1rem 0;
       font-family: monospace;
       font-size: 1rem;
       text-align: center;
-      color: #fff;
     }
     #pressure-converter input {
       width: 5rem;
       padding: 4px;
-      font-size: 1rem;
       font-family: monospace;
+      font-size: 1rem;
       text-align: right;
       margin: 0 0.5rem;
     }
-    /* Bonaire visibility under converter */
     #bonaire-visibility {
       font-family: monospace;
       font-size: 1rem;
       text-align: center;
-      color: #ff9900;
+      color: #66ffcc;
       margin-bottom: 1rem;
     }
-    /* compact, vertical TAF column */
     #compact-taf {
       display: flex;
       flex-direction: column;
       font-family: monospace;
-      font-size: 1.2rem;
-      line-height: 1.4;
+      font-size: 1rem;
+      line-height: 1.2;
       border-top: 1px solid #2a3b47;
       padding-top: 8px;
+      max-height: 15rem;
+      overflow-y: auto;
     }
     #compact-taf div {
       margin-bottom: 0.4rem;
@@ -161,8 +156,7 @@
 
   <div id="pressure-converter">
     Pressure Converter:
-    <label>
-      hPa
+    <label>hPa
       <input id="pressure-input" type="number" placeholder="hPa">
     </label>
     = <span id="pressure-output">-- inHg</span>
@@ -171,6 +165,7 @@
   <div id="bonaire-visibility">Bonaire Visibility: –</div>
 
   <div id="compact-taf">Loading TAF…</div>
+
   <audio id="alarm"
          src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
          preload="auto"></audio>
@@ -190,22 +185,19 @@
     const metarStations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
     const tafStations   = ['TNCB','TNCC'];
     const watchStation  = 'TNCA';
-    const wxCodes       = /[+-]?(?:VCSH|TSRA|SHRA|TS|SH|RA|DZ|BR|FG|SQ|PO|FC)/g;
-    const cloudPattern  = /^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?(\/{3})?$/;
+    const wxCodes       = /[+-]?(?:VCSH|TS)/g;
+    const cloudPattern  = /^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/;
     let prevTimes       = {};
     const metarInterval = 30;
     let lastTs          = Date.now();
 
     function updateClocks() {
-      const now = new Date();
-      const pad = n => n.toString().padStart(2,'0');
-      localTime.textContent = 
-        'Local: ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-      utcTime.textContent =
-        'UTC: ' + pad(now.getUTCHours()) + ':' + pad(now.getUTCMinutes()) + ':' + pad(now.getUTCSeconds());
-      const elapsed = Math.floor((Date.now() - lastTs)/1000);
-      const nextIn  = Math.max(0, metarInterval - elapsed);
-      nextUpdate.textContent = 'Next in: ' + nextIn + 's';
+      const now = new Date(),
+            pad = n => n.toString().padStart(2,'0'),
+            elapsed = Math.floor((Date.now() - lastTs)/1000);
+      localTime.textContent = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      utcTime.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+      nextUpdate.textContent = `Next in: ${Math.max(0, metarInterval - elapsed)}s`;
     }
 
     async function updateMetar() {
@@ -218,60 +210,58 @@
         let html = '', alert = false;
 
         data.forEach(raw => {
-          const toks = raw.split(' ');
-          const code = toks[0] || '–',
+          const toks = raw.split(' '),
+                code = toks[0] || '–',
                 time = toks[1] || '–';
           let wind='–', vis='–', td='–', qnh='–', clouds=[];
 
-          // weather intensity
+          toks.slice(2).forEach(tok => {
+            if (/KT$/.test(tok)) wind = tok;
+            else if (/^\d{4}$/.test(tok)) vis = tok;
+            else if (cloudPattern.test(tok) || tok === '///') clouds.push(tok);
+            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
+            else if (/^Q\d{4}$/.test(tok)) {
+              const h = +tok.slice(1);
+              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
+            }
+          });
+
+          const gm = wind.match(/G(\d{2,3})/);
+          const gustVal = gm ? +gm[1] : 0;
           const wxMatch = raw.match(wxCodes) || [];
+          const hasTS   = wxMatch.some(w => w.includes('TS'));
+
           const wxDisplay = wxMatch.length
             ? wxMatch.map(w => {
-                const cls = w.startsWith('+')?'heavy'
-                          : w.startsWith('-')?'light':'normal';
+                const cls = w.startsWith('+') ? 'heavy'
+                          : w.startsWith('-') ? 'light'
+                          : 'normal';
                 return `<span class="${cls}">${w}</span>`;
               }).join('')
             : '–';
 
-          // parse tokens
-          toks.slice(2).forEach(tok => {
-            if (/KT$/.test(tok)) wind = tok;
-            else if (/^\d{4}$/.test(tok)) vis = tok;
-            else if (cloudPattern.test(tok)) clouds.push(tok);
-            else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
-            else if (/^Q\d{4}$/.test(tok)) {
-              const h = +tok.slice(1);
-              qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
-            }
-          });
-
-          // clouds styling
           const cloudsDisplay = clouds.length
             ? clouds.map(c => {
                 let cls = '';
-                if (c.includes('///')) cls = 'nil';
-                else if (c.endsWith('TCU')) cls = 'tcu';
-                else if (c.endsWith('CB'))  cls = 'cb';
+                if (c === '///') cls = 'nil';
+                if (/TCU/.test(c)) cls = 'tcu';
+                if (/CB/.test(c))  cls = 'cb';
                 return `<span class="${cls}">${c}</span>`;
               }).join('')
             : '–';
 
-          // highlight time change
           const changed = time !== prevTimes[code];
           prevTimes[code] = time;
 
-          // alarm logic
-          const hasWxAlarm = wxMatch.some(w=>/VCSH|TS|SH/.test(w));
-          const alarmCond  = code===watchStation && (wind.includes('G')||hasWxAlarm);
-          if (alarmCond) alert = true;
+          if (code === watchStation && (gustVal >= 35 || hasTS)) alert = true;
 
           html += `
             <tr>
               <td class="station-code">${code}</td>
               <td class="${changed?'bold-time':''}">${time}</td>
-              <td class="${alarmCond?'alert':''}">${wind}</td>
+              <td>${wind}</td>
               <td>${vis}</td>
-              <td class="wx ${alarmCond?'alert':''}">${wxDisplay}</td>
+              <td class="wx">${wxDisplay}</td>
               <td class="clouds">${cloudsDisplay}</td>
               <td>${td}</td>
               <td>${qnh}</td>
@@ -312,9 +302,9 @@
         const target = encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current');
         const res    = await fetch(proxy + target);
         const text   = await res.text();
-        const doc    = new DOMParser().parseFromString(text,'text/html');
+        const doc    = new DOMParser().parseFromString(text, 'text/html');
         const row    = Array.from(doc.querySelectorAll('tr'))
-                         .find(tr => tr.textContent.includes('Visibility (m)'));
+                          .find(tr => tr.textContent.includes('Visibility (m)'));
         let v = '–';
         if (row) {
           const cell = row.querySelectorAll('td')[1];
@@ -335,12 +325,18 @@
       });
     }
 
-    // initialize
-    updateMetar();      setInterval(updateMetar,      metarInterval * 1000);
-    updateBonaireVis(); setInterval(updateBonaireVis, 60000);
-    updateTaf();        setInterval(updateTaf,        300000);
-    setInterval(updateClocks, 1000);
     initPressureConverter();
+    updateClocks();
+    updateMetar();
+    updateTaf();
+    updateBonaireVis();
+
+    setInterval(updateClocks, 1000);
+    setInterval(() => {
+      updateMetar();
+      updateBonaireVis();
+    }, metarInterval * 1000);
   </script>
+
 </body>
 </html>
