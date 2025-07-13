@@ -24,7 +24,7 @@
       font-size: 1.6rem;
     }
     #timers span { margin: 0 0.5rem; }
-    #local-time, #utc-time {
+    #current-date, #local-time, #utc-time {
       color: #66ffcc;
       font-weight: bold;
     }
@@ -176,6 +176,7 @@
   <h1>CAR/VEN & Bonaire METAR & TAF</h1>
 
   <div id="timers">
+    <span id="current-date">Date: ----------</span> |
     <span id="local-time">Local: --:--:--</span> |
     <span id="utc-time">UTC: --:--:--</span> |
     <span id="next-update">Next in: --s</span>
@@ -235,6 +236,7 @@
     const localTimeEl   = document.getElementById('local-time');
     const utcTimeEl     = document.getElementById('utc-time');
     const nextUpdateEl  = document.getElementById('next-update');
+    const dateEl        = document.getElementById('current-date');
     const pInput        = document.getElementById('pressure-input');
     const pOutput       = document.getElementById('pressure-output');
 
@@ -249,6 +251,8 @@
       const now = new Date();
       const pad = n => n.toString().padStart(2,'0');
       const elapsed = Math.floor((Date.now() - lastTs)/1000);
+      const dd = pad(now.getDate()), mm = pad(now.getMonth()+1), yyyy = now.getFullYear();
+      dateEl.textContent = `Date: ${dd}-${mm}-${yyyy}`;
       localTimeEl.textContent  = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
       utcTimeEl.textContent    = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
       nextUpdateEl.textContent = `Next in: ${Math.max(0, metarInterval - elapsed)}s`;
@@ -313,17 +317,13 @@
           prevTimes[code] = time;
 
           const wxDisplay = wxMatch.length
-            ? wxMatch.map(w => `<span>${w}</span>`).join(' ')
-            : '–';
+            ? wxMatch.map(w => `<span>${w}</span>`).join(' ') : '–';
 
           const cloudsDisplay = clouds.length
             ? clouds.map(c => {
-                let cls = '';
-                if (/TCU/.test(c)) cls = 'tcu';
-                if (/CB/.test(c))  cls = 'cb';
+                let cls=''; if(/TCU/.test(c)) cls='tcu'; if(/CB/.test(c)) cls='cb';
                 return `<span class="${cls}">${c}</span>`;
-              }).join(' ')
-            : '–';
+              }).join(' ') : '–';
 
           html += `
             <tr>
@@ -333,8 +333,7 @@
               <td class="${visAlert?'low-vis':''}">${vis}</td>
               <td class="wx">${wxDisplay}</td>
               <td class="clouds">${cloudsDisplay}</td>
-              <td>${td}</td>
-              <td>${qnh}</td>
+              <td>${td}</td><td>${qnh}</td>
             </tr>
             <tr class="raw-row">
               <td colspan="8"><pre class="raw-code">${raw}</pre></td>
@@ -351,49 +350,41 @@
 
     async function updateBonaireVis() {
       try {
-        const proxy  = 'https://api.allorigins.win/raw?url=';
-        const target = encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current');
-        const res    = await fetch(proxy + target);
-        const text   = await res.text();
-        const doc    = new DOMParser().parseFromString(text, 'text/html');
-        const row    = Array.from(doc.querySelectorAll('tr'))
-                          .find(tr => tr.textContent.includes('Visibility (m)'));
-        let v = '–';
-        if (row) {
-          const cell = row.querySelectorAll('td')[1];
-          if (cell) v = cell.textContent.trim();
+        const proxy='https://api.allorigins.win/raw?url=';
+        const target=encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current');
+        const res=await fetch(proxy+target);
+        const text=await res.text();
+        const doc=new DOMParser().parseFromString(text,'text/html');
+        const row=[...doc.querySelectorAll('tr')].find(tr=>tr.textContent.includes('Visibility (m)'));
+        let v='–';
+        if(row){
+          const cell=row.querySelectorAll('td')[1];
+          if(cell) v=cell.textContent.trim();
         }
-        visEl.textContent = `Bonaire Visibility: ${v}`;
-      } catch {
-        visEl.textContent = 'Bonaire Visibility: n/a';
+        visEl.textContent=`Bonaire Visibility: ${v}`;
+      }catch{
+        visEl.textContent='Bonaire Visibility: n/a';
       }
     }
 
     async function updateTaf() {
       try {
-        const res  = await fetch(
+        const res=await fetch(
           `https://api.checkwx.com/taf/${tafStations.join(',')}`,
-          { headers: { 'X-API-Key': API_KEY } }
+          { headers:{ 'X-API-Key':API_KEY }}
         );
-        const json = await res.json();
-        const list = json.data || [];
-        let html = '';
-        list.forEach(raw => {
-          const st = raw.split(' ')[0];
-          html += `<div><strong>${st}:</strong> <span>${raw}</span></div>`;
-        });
-        tafEl.innerHTML = html;
-      } catch {
-        tafEl.innerHTML = '⚠️ Error loading TAF';
+        const json=await res.json();
+        const list=json.data||[];
+        tafEl.innerHTML=list.map(r=>`<div><strong>${r.split(' ')[0]}:</strong> <span>${r}</span></div>`).join('');
+      }catch{
+        tafEl.textContent='⚠️ Error loading TAF';
       }
     }
 
     function initPressureConverter() {
-      pInput.addEventListener('input', () => {
-        const hpa = parseFloat(pInput.value);
-        pOutput.textContent = !isNaN(hpa)
-          ? `${(hpa * 0.02953).toFixed(2)} inHg`
-          : '-- inHg';
+      pInput.addEventListener('input',()=>{
+        const hpa=parseFloat(pInput.value);
+        pOutput.textContent=!isNaN(hpa)?`${(hpa*0.02953).toFixed(2)} inHg`:'-- inHg';
       });
     }
 
@@ -402,12 +393,11 @@
     updateMetar();
     updateTaf();
     updateBonaireVis();
-
-    setInterval(updateClocks, 1000);
-    setInterval(() => {
+    setInterval(updateClocks,1000);
+    setInterval(()=>{
       updateMetar();
       updateBonaireVis();
-    }, metarInterval * 1000);
+    },metarInterval*1000);
   </script>
 
 </body>
