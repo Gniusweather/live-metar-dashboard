@@ -21,19 +21,18 @@
       text-align: center;
       font-family: monospace;
       margin-bottom: 1rem;
+      font-size: 1.6rem;
     }
     #timers span {
       margin: 0 0.5rem;
     }
     #local-time, #utc-time {
       color: #66ffcc;
-      font-size: 1.4rem;
       font-weight: bold;
     }
     #next-update {
       color: #999;
-      font-family: monospace;
-      font-size: 1rem;
+      font-size: 1.2rem;
     }
     table {
       width: 100%;
@@ -59,11 +58,13 @@
     .raw-row td {
       background: #1a1a1a;
       font-weight: normal;
+      font-size: 1.4rem;
+      padding: 16px;
     }
     .raw-code {
       margin: 0.5em 0 0;
       font-family: monospace;
-      font-size: 1rem;
+      font-size: 1.4rem;
       white-space: pre-wrap;
       color: #999;
     }
@@ -86,7 +87,7 @@
     }
     td.clouds span.nil { color: #999; }
     td.clouds span.tcu { text-decoration: underline; color: #ffcc00; }
-    td.clouds span.cb  { font-weight: bold;     color: #ff6600; }
+    td.clouds span.cb  { font-weight: bold; color: #ff6600; }
     #pressure-converter {
       margin: 1rem 0;
       font-family: monospace;
@@ -112,8 +113,8 @@
       display: flex;
       flex-direction: column;
       font-family: monospace;
-      font-size: 1rem;
-      line-height: 1.2;
+      font-size: 1.2rem;
+      line-height: 1.4;
       border-top: 1px solid #2a3b47;
       padding-top: 8px;
       max-height: 15rem;
@@ -185,11 +186,12 @@
     const metarStations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
     const tafStations   = ['TNCB','TNCC'];
     const watchStation  = 'TNCA';
-    const wxCodes       = /[+-]?(?:VCSH|TS)/g;
     const cloudPattern  = /^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?$/;
     let prevTimes       = {};
     const metarInterval = 30;
     let lastTs          = Date.now();
+
+    const wxCodes = /\b(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)\b/g;
 
     function updateClocks() {
       const now = new Date(),
@@ -215,7 +217,9 @@
                 time = toks[1] || '–';
           let wind='–', vis='–', td='–', qnh='–', clouds=[];
 
-          toks.slice(2).forEach(tok => {
+          let stopParsing = false;
+          for (let tok of toks.slice(2)) {
+            if (stopParsing) break;
             if (/KT$/.test(tok)) wind = tok;
             else if (/^\d{4}$/.test(tok)) vis = tok;
             else if (cloudPattern.test(tok) || tok === '///') clouds.push(tok);
@@ -223,12 +227,13 @@
             else if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
               qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
+              stopParsing = true;
             }
-          });
+          }
 
-          const gm = wind.match(/G(\d{2,3})/);
-          const gustVal = gm ? +gm[1] : 0;
-          const wxMatch = raw.match(wxCodes) || [];
+          const cutoffIndex = raw.indexOf(' Q');
+          const structuredPart = cutoffIndex !== -1 ? raw.slice(0, cutoffIndex + 5) : raw;
+          const wxMatch = structuredPart.match(wxCodes) || [];
           const hasTS   = wxMatch.some(w => w.includes('TS'));
 
           const wxDisplay = wxMatch.length
@@ -250,6 +255,8 @@
               }).join('')
             : '–';
 
+          const gm = wind.match(/G(\d{2,3})/);
+          const gustVal = gm ? +gm[1] : 0;
           const changed = time !== prevTimes[code];
           prevTimes[code] = time;
 
