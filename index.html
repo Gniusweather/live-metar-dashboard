@@ -90,7 +90,7 @@
     }
     td.clouds span.nil    { color: #999; }
     td.clouds span.normal { color: #fff; }
-    td.clouds span.tcu    { color: #66ffcc; }
+    td.clouds span.tcu,
     td.clouds span.cb     { color: #66ffcc; }
 
     #pressure-converter {
@@ -108,7 +108,6 @@
       margin: 0 0.5rem;
     }
 
-    /* Smaller font for Bonaire visibility */
     #bonaire-visibility {
       text-align: center;
       font-family: monospace;
@@ -134,6 +133,42 @@
       color: #66ffcc;
     }
     #compact-taf span { white-space: nowrap; }
+
+    #alert-toggle {
+      display: block;
+      margin: 2rem auto 1rem;
+      font-family: monospace;
+      font-size: 1.2rem;
+      background: #004466;
+      color: #ffffff;
+      border: 2px solid #66ffcc;
+      border-radius: 6px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    #alert-toggle:hover {
+      background: #006699;
+    }
+
+    #alert-history {
+      display: none;
+      font-family: monospace;
+      font-size: 1.2rem;
+      max-height: 200px;
+      overflow-y: auto;
+      border-top: 1px solid #2a3b47;
+      padding-top: 1rem;
+    }
+    #alert-history h2 {
+      font-size: 1.6rem;
+      color: #ff9999;
+      margin-bottom: 0.5rem;
+    }
+    #alert-log li {
+      margin-bottom: 0.5rem;
+      color: #ffcccc;
+    }
   </style>
 </head>
 <body>
@@ -170,6 +205,12 @@
 
   <div id="compact-taf">Loading TAF…</div>
 
+  <button id="alert-toggle" onclick="toggleAlertHistory()">Show Alert History</button>
+  <div id="alert-history">
+    <h2>🚨 Alert History</h2>
+    <ul id="alert-log"></ul>
+  </div>
+
   <audio id="alarm"
          src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
          preload="auto"></audio>
@@ -189,18 +230,25 @@
     const dataEl        = document.getElementById('data');
     const visEl         = document.getElementById('bonaire-visibility');
     const tafEl         = document.getElementById('compact-taf');
-    const alarmEl       = document.getElementById('alarm');
+    const alertLogEl    = document.getElementById('alert-log');
+    const alertToggleEl = document.getElementById('alert-toggle');
     const localTimeEl   = document.getElementById('local-time');
     const utcTimeEl     = document.getElementById('utc-time');
     const nextUpdateEl  = document.getElementById('next-update');
     const pInput        = document.getElementById('pressure-input');
     const pOutput       = document.getElementById('pressure-output');
 
+    function toggleAlertHistory() {
+      const section = document.getElementById('alert-history');
+      const isHidden = section.style.display === 'none' || section.style.display === '';
+      section.style.display = isHidden ? 'block' : 'none';
+      alertToggleEl.textContent = isHidden ? 'Hide Alert History' : 'Show Alert History';
+    }
+
     function updateClocks() {
       const now = new Date();
       const pad = n => n.toString().padStart(2,'0');
       const elapsed = Math.floor((Date.now() - lastTs)/1000);
-
       localTimeEl.textContent  = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
       utcTimeEl.textContent    = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
       nextUpdateEl.textContent = `Next in: ${Math.max(0, metarInterval - elapsed)}s`;
@@ -218,9 +266,9 @@
         let html = '', alert = false;
 
         list.forEach(raw => {
-          const toks = raw.split(' ');
-          const code = toks[0] || '–';
-          const time = toks[1] || '–';
+          const toks      = raw.split(' ');
+          const code      = toks[0] || '–';
+          const time      = toks[1] || '–';
           let wind='–', vis='–', td='–', qnh='–';
           let clouds = [], wxMatch = [];
 
@@ -244,6 +292,18 @@
           const weatherAlert = wxMatch.length > 0;
           const stationAlert = windAlert || weatherAlert || visAlert;
           if (code === watchStation && stationAlert) alert = true;
+
+          if (stationAlert) {
+            const timestamp = new Date().toLocaleString();
+            const reasons = [];
+            if (windAlert) reasons.push(`💨 Gust ${gustVal}KT`);
+            if (visAlert)  reasons.push(`🌫️ Vis ${vis}m`);
+            if (weatherAlert) reasons.push(`⛈️ Wx: ${wxMatch.join(', ')}`);
+            const entry = `${timestamp} – ${code}: ${reasons.join(', ')}`;
+            const li = document.createElement('li');
+            li.textContent = entry;
+            alertLogEl.prepend(li);
+          }
 
           if (code === 'TNCS') {
             visEl.textContent = `Bonaire Visibility: ${vis} meters`;
@@ -282,7 +342,7 @@
         });
 
         dataEl.innerHTML = html;
-        if (alert) alarmEl.play();
+        if (alert) document.getElementById('alarm').play();
         lastTs = Date.now();
       } catch {
         dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
