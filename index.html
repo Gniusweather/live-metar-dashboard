@@ -14,19 +14,19 @@
     }
     h1 {
       text-align: center;
-      font-size: 2rem;
+      font-size: 2.4rem;
       margin-bottom: 0.5rem;
     }
     button, #alert-toggle {
       display: block;
       margin: 0.5rem auto;
       font-family: monospace;
-      font-size: 1rem;
+      font-size: 1.2rem;
       background: #004466;
       color: #fff;
       border: 1px solid #66ffcc;
       border-radius: 4px;
-      padding: 6px 12px;
+      padding: 8px 16px;
       cursor: pointer;
       transition: background 0.3s;
     }
@@ -37,7 +37,7 @@
       text-align: center;
       font-family: monospace;
       margin-bottom: 0.5rem;
-      font-size: 1.6rem;
+      font-size: 1.8rem;
     }
     #timers span { margin: 0 0.5rem; }
     #current-date, #local-time, #utc-time {
@@ -46,13 +46,13 @@
     }
     #next-update {
       color: #999;
-      font-size: 1.2rem;
+      font-size: 1.4rem;
     }
     table {
       width: 100%;
       border-collapse: collapse;
       font-family: monospace;
-      font-size: 1.4rem;
+      font-size: 1.8rem;
       margin-top: 0.5rem;
     }
     th, td {
@@ -64,10 +64,11 @@
     th {
       background: #003b5a;
       color: #66ffcc;
+      font-size: 1.8rem;
     }
     td { color: #f2f2f2; }
     td.station-code {
-      font-size: 1.8rem;
+      font-size: 2.4rem;
       color: #66ffcc;
     }
     td.station-code.alert {
@@ -81,15 +82,10 @@
     td.low-vis, td.gust {
       color: #66ffcc;
     }
-    td.wx-change {
-      color: #66ffcc !important;
+    td.wx, td.clouds {
+      white-space: nowrap;
     }
-    td.wx span {
-      display: inline-block;
-      margin-right: 0.4em;
-      font-family: monospace;
-      color: inherit;
-    }
+    td.wx span,
     td.clouds span {
       display: inline-block;
       margin-right: 0.4em;
@@ -100,7 +96,6 @@
     td.clouds span.tcu,
     td.clouds span.cb     { color: #66ffcc; }
 
-    /* Align raw METAR left under each station */
     .raw-row td {
       background: #1a1a1a;
       padding: 16px;
@@ -110,22 +105,22 @@
       margin: 0;
       padding: 0;
       font-family: monospace;
-      font-size: 1.4rem;
+      font-size: 1.6rem;
       white-space: pre-wrap;
-      color: #999;
+      color: #ccc;
       text-align: left;
     }
 
     #pressure-converter {
       text-align: center;
       font-family: monospace;
-      font-size: 1rem;
+      font-size: 1.2rem;
       margin: 1rem auto;
     }
     #pressure-converter input {
-      width: 60px;
-      padding: 2px 4px;
-      font-size: 1rem;
+      width: 80px;
+      padding: 4px 6px;
+      font-size: 1.2rem;
       text-align: right;
       border: 1px solid #66ffcc;
       border-radius: 4px;
@@ -134,7 +129,7 @@
     }
     #pressure-output {
       margin-left: 0.5rem;
-      font-size: 1rem;
+      font-size: 1.2rem;
       color: #ffff99;
     }
     #bonaire-visibility {
@@ -142,12 +137,12 @@
       font-family: monospace;
       margin-bottom: 1rem;
       color: #66ffcc;
-      font-size: 1.2rem;
+      font-size: 1.4rem;
     }
     #compact-taf {
       margin-top: 1rem;
       font-family: monospace;
-      font-size: 1.2rem;
+      font-size: 1.4rem;
       line-height: 1.4;
       border-top: 1px solid #2a3b47;
       padding-top: 8px;
@@ -157,18 +152,19 @@
     #compact-taf div { margin-bottom: 0.4rem; }
     #compact-taf strong {
       display: inline-block;
-      width: 50px;
+      width: 60px;
       color: #66ffcc;
+      font-size: 1.4rem;
     }
-    #compact-taf span { white-space: nowrap; }
+    #compact-taf span { white-space: nowrap; font-size: 1.4rem; }
 
     #alert-history h2 {
-      font-size: 1.4rem;
+      font-size: 1.6rem;
       color: #ff9999;
       margin-bottom: 0.5rem;
     }
     #alert-log li {
-      font-size: 1rem;
+      font-size: 1.4rem;
       margin: 0.25rem 0;
       color: #ffcccc;
     }
@@ -180,7 +176,7 @@
   <h1>CAR/VEN METAR AND TAF</h1>
 
   <div id="timers">
-    <span id="current-date">Date: --------</span> |
+    <span id="current-date">Date: --/--/----</span> |
     <span id="local-time">Local: --:--:--</span> |
     <span id="utc-time">UTC: --:--:--</span> |
     <span id="next-update">Next in: --s</span>
@@ -199,7 +195,9 @@
   </table>
 
   <div id="pressure-converter">
-    <label>Pressure (hPa): <input id="pressure-input" type="number" placeholder="1013"></label>
+    <label>Pressure (hPa):
+      <input id="pressure-input" type="number" placeholder="1013">
+    </label>
     <span id="pressure-output">-- inHg</span>
   </div>
 
@@ -223,9 +221,9 @@
     const watchStation  = 'TNCA';
     const metarInterval = 30;
 
-    let isLive = true;
-    const prevTimes = {};
-    const prevWx    = {};
+    let isLive    = true;
+    let lastFetch = Date.now();
+    const prevTimes   = {};
     const alertStates = {};
 
     const modeToggleEl = document.getElementById('mode-toggle');
@@ -240,36 +238,20 @@
     const pInput       = document.getElementById('pressure-input');
     const pOutput      = document.getElementById('pressure-output');
 
-    const testMetarData = [
-      "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
-      "TNCB 010300Z 03010KT 3000 -RA SCT025TCU 22/19 Q1011",
-      "TNCC 010300Z 02020G50KT 2000 +TSRA FEW016/// 24/22 Q1013",
-      "TNCM 010300Z 05012G38KT 7000 FG BKN015CB 23/21 Q1010",
-      "SVMI 010300Z 00005KT 5000 BR FEW012TCU 25/23 Q1009",
-      "SVVA 010300Z 02007KT 4000 RA SCT020CB 24/22 Q1008",
-      "TNCS 010300Z 01000KT 2000 FG FEW016/// 24/22 Q1015"
-    ];
-    const testTafData = [
-      "TNCB 010300Z 0103/0206 00000KT P6SM FEW020",
-      "TNCC 010300Z 0103/0206 02005KT P6SM SCT020"
-    ];
-
-    function pad(n){ return n.toString().padStart(2,'0'); }
+    function pad(n) { return n.toString().padStart(2,'0'); }
 
     modeToggleEl.addEventListener('click', () => {
       isLive = !isLive;
       modeToggleEl.textContent = isLive ? 'Switch to Test Mode' : 'Switch to Live Mode';
-      updateClocks();
-      updateMetar();
-      updateTaf();
-      updateBonaireVis();
+      updateAll();
     });
 
     function toggleAlertHistory() {
       const sec = document.getElementById('alert-history');
       const show = sec.style.display === 'none';
       sec.style.display = show ? 'block' : 'none';
-      document.getElementById('alert-toggle').textContent = show ? 'Hide Alert History' : 'Show Alert History';
+      document.getElementById('alert-toggle')
+              .textContent = show ? 'Hide Alert History' : 'Show Alert History';
     }
 
     function updateClocks() {
@@ -277,151 +259,131 @@
       dateEl.textContent      = `Date: ${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()}`;
       localTimeEl.textContent = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
       utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
-      const elapsed = Math.floor((Date.now() - (prevTimes._ts||0)) / 1000);
-      nextUpdateEl.textContent = `Next in: ${Math.max(0, metarInterval - elapsed)}s`;
+      const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
+      nextUpdateEl.textContent = `Next in: ${Math.max(metarInterval - elapsed,0)}s`;
     }
 
     async function updateMetar() {
       try {
-        const list = isLive
-          ? (await fetch(`https://api.checkwx.com/metar/${metarStations.join(',')}`, {
-               headers:{ 'X-API-Key': API_KEY }})
-            .then(r=>r.json()).then(j=>j.data||[]))
-          : testMetarData;
+        const rawList = isLive
+          ? await fetch(`https://api.checkwx.com/metar/${metarStations.join(',')}`, {
+              headers:{ 'X-API-Key': API_KEY }
+            }).then(r=>r.json()).then(j=>j.data||[])
+          : [
+              "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
+              "TNCB 010300Z 03010KT 3000 -RA SCT025TCU 22/19 Q1011",
+              "TNCS 010300Z 01000KT 2000 FG FEW016/// 24/22 Q1015"
+            ];
 
         let html = '';
-        list.forEach(raw => {
+        rawList.forEach(raw => {
           const toks = raw.split(' ');
-          const code = toks[0]||'–', time = toks[1]||'–';
-
+          const code = toks[0]||'–';
+          const time = toks[1]||'–';
           let wind='–', vis='–', td='–', qnh='–';
-          let clouds=[], wxMatch=[];
+          const clouds=[]; const wxMatch=[];
+
           toks.slice(2).forEach(tok => {
             if (/^Q\d{4}$/.test(tok)) {
-              const h = +tok.slice(1);
-              qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
+              const h=+tok.slice(1);
+              qnh=`${h} – ${(h*0.02953).toFixed(2)}`;
             } else if (/KT$/.test(tok)) {
-              wind = tok;
+              wind=tok;
             } else if (/^\d{4}$/.test(tok)) {
-              vis = tok;
-            } else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB|\/{3})?$/.test(tok)|| tok==='///') {
+              vis=tok;
+            } else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?/.test(tok)) {
               clouds.push(tok);
-            } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
-              td = tok;
             } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)$/.test(tok)) {
               wxMatch.push(tok);
+            } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
+              td=tok;
             }
           });
 
-          const gustVal = +(wind.match(/G(\d{2,3})/)||[])[1]||0;
-          const visVal  = /^\d+$/.test(vis)? +vis : 9999;
-          const vA      = visVal <= 5000;
-          const wA      = gustVal >= 35;
-          const wxA     = wxMatch.length > 0;
-          const stationAlert = vA || wA || wxA;
+          const gustVal  = +(wind.match(/G(\d{2,3})/)?.[1]||0);
+          const visVal   = /^\d+$/.test(vis)?+vis:9999;
+          const lowVis   = visVal<=5000;
+          const gustAlert= gustVal>=35;
+          const wxAlert  = wxMatch.length>0;
+          const cloudAlert=clouds.some(c=>/TCU|CB/.test(c));
+          const alertOn  = lowVis||gustAlert||wxAlert||cloudAlert;
 
-          if (!alertStates[code] && stationAlert) {
-            alertStates[code] = true;
-            if (code === watchStation) document.getElementById('alarm').play();
-            const reasons = [];
-            if (wA)  reasons.push(`💨 Gust ${gustVal}KT`);
-            if (vA)  reasons.push(`🌫️ Vis ${vis}m`);
-            if (wxA) reasons.push(`⛈️ ${wxMatch.join(', ')}`);
-            const li = document.createElement('li');
-            li.textContent = `${new Date().toLocaleString()} – ${code}: ${reasons.join(' | ')}`;
+          if (!alertStates[code] && alertOn) {
+            alertStates[code]=true;
+            if (code===watchStation) document.getElementById('alarm').play();
+            const reasons=[];
+            if (gustAlert)   reasons.push(`💨 Gust ${gustVal}KT`);
+            if (lowVis)      reasons.push(`🌫️ Vis ${vis}m`);
+            if (wxAlert)     reasons.push(`⛈️ ${wxMatch.join(', ')}`);
+            if (cloudAlert)  reasons.push(`☁️ ${clouds.join(', ')}`);
+            const li=document.createElement('li');
+            li.textContent=`${new Date().toLocaleString()} – ${code}: ${reasons.join(' | ')}`;
             alertLogEl.prepend(li);
           }
-          if (alertStates[code] && !stationAlert) {
-            alertStates[code] = false;
+          if (alertStates[code] && !alertOn) {
+            alertStates[code]=false;
           }
-          if (code === 'TNCS') {
-            visEl.textContent = `Bonaire Visibility: ${vis} meters`;
-          }
+          if (code==='TNCS') visEl.textContent=`Bonaire Visibility: ${vis} meters`;
 
-          const wxStr     = wxMatch.join(', ');
-          const wxChanged = prevWx[code] !== undefined && prevWx[code] !== wxStr;
-          prevWx[code] = wxStr;
+          const visCls   = lowVis?'low-vis':'';
+          const gustCls  = gustAlert?'gust':'';
+          const wxCls    = wxAlert?'low-vis':'';
+          const cloudCls = cloudAlert?'low-vis':'';
 
-          const wxHtml  = wxMatch.length ? wxMatch.map(w=>`<span>${w}</span>`).join(' ') : '–';
-          const clHtml  = clouds.length ? clouds.map(c=>`<span class="${/TCU/.test(c)?'tcu':/CB/.test(c)?'cb':''}">${c}</span>`).join(' ') : '–';
-          const tChanged = time !== prevTimes[code];
-          prevTimes[code] = time;
-
-          html += `<tr>
-              <td class="station-code ${stationAlert?'alert':''}">${code}</td>
-              <td class="${tChanged?'bold-time':''}">${time}</td>
-              <td class="${wA?'gust':''}">${wind}</td>
-              <td class="${vA?'low-vis':''}">${vis}</td>
-              <td class="wx ${wxChanged?'wx-change':''}">${wxHtml}</td>
-              <td class="clouds">${clHtml}</td>
+          html+=`
+            <tr>
+              <td class="station-code ${alertOn?'alert':''}">${code}</td>
+              <td class="${time!==prevTimes[code]?'bold-time':''}">${time}</td>
+              <td class="${gustCls}">${wind}</td>
+              <td class="${visCls}">${vis}</td>
+              <td class="wx ${wxCls}">${wxMatch.length?wxMatch.join(' '):'–'}</td>
+              <td class="clouds ${cloudCls}">${clouds.length?clouds.join(' '):'–'}</td>
               <td>${td}</td>
               <td>${qnh}</td>
             </tr>
-            <tr class="raw-row">
-              <td colspan="8"><pre class="raw-code">${raw}</pre></td>
-            </tr>`;
+            <tr class="raw-row"><td colspan="8"><pre class="raw-code">${raw}</pre></td></tr>`;
+          prevTimes[code]=time;
         });
 
-        dataEl.innerHTML = html;
-        prevTimes._ts = Date.now();
-      } catch {
-        dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+        dataEl.innerHTML=html;
+        lastFetch=Date.now();
+      }catch{
+        dataEl.innerHTML=`<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+        lastFetch=Date.now();
       }
     }
 
-    async function updateBonaireVis() {
-      if (!isLive) {
-        visEl.textContent = 'Bonaire Visibility: 4500 meters (test)';
-        return;
-      }
-      try {
-        const proxy  = 'https://api.allorigins.win/raw?url=';
-        const target = encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current');
-        const text   = await fetch(proxy + target).then(r=>r.text());
-        const doc    = new DOMParser().parseFromString(text,'text/html');
-        const row    = Array.from(doc.querySelectorAll('tr'))
-                          .find(tr=>tr.textContent.includes('Visibility (m)'));
-        let v = '–';
-        if (row) v = row.querySelectorAll('td')[1]?.textContent.trim();
-        visEl.textContent = `Bonaire Visibility: ${v}`;
-      } catch {
-        visEl.textContent = 'Bonaire Visibility: n/a';
-      }
+    async function updateBonaireVis(){
+      if(!isLive){visEl.textContent='Bonaire Visibility: test';return;}
+      try{
+        const t=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current')).then(r=>r.text());
+        const doc=new DOMParser().parseFromString(t,'text/html');
+        const row=Array.from(doc.querySelectorAll('tr')).find(tr=>tr.textContent.includes('Visibility (m)'));
+        visEl.textContent=`Bonaire Visibility: ${row?row.querySelectorAll('td')[1].textContent.trim()+'m':'–'}`;
+      }catch{visEl.textContent='Bonaire Visibility: n/a'}
     }
 
-    async function updateTaf() {
-      try {
-        const list = isLive
-          ? (await fetch(`https://api.checkwx.com/taf/${tafStations.join(',')}`, {
-               headers:{ 'X-API-Key': API_KEY }})
-             .then(r=>r.json()).then(j=>j.data||[]))
-          : testTafData;
-        tafEl.innerHTML = list.map(raw => {
-          const st = raw.split(' ')[0];
-          return `<div><strong>${st}:</strong> <span>${raw}</span></div>`;
-        }).join('');
-      } catch {
-        tafEl.textContent = '⚠️ Error loading TAF';
-      }
+    async function updateTaf(){
+      try{
+        const list=isLive
+          ?await fetch(`https://api.checkwx.com/taf/${tafStations.join(',')}`,{headers:{'X-API-Key':API_KEY}}).then(r=>r.json()).then(j=>j.data||[])
+          :["TNCB 010300Z 0103/0206 00000KT P6SM FEW020","TNCC 010300Z 0103/0206 02005KT P6SM SCT020"];
+        tafEl.innerHTML=list.map(r=>`<div><strong>${r.split(' ')[0]}:</strong> ${r}</div>`).join('');
+      }catch{tafEl.textContent='⚠️ Error loading TAF'}
     }
 
-    pInput.addEventListener('input', () => {
-      const hpa = parseFloat(pInput.value);
-      pOutput.textContent = !isNaN(hpa)
-        ? `${(hpa*0.02953).toFixed(2)} inHg`
-        : '-- inHg';
+    function updateAll(){updateMetar();updateClocks();updateTaf();updateBonaireVis();}
+
+    pInput.addEventListener('input',()=>{
+      const h=+pInput.value;
+      pOutput.textContent=isNaN(h)?'-- inHg':(h*0.02953).toFixed(2)+' inHg';
     });
 
-    // initialize
-    updateClocks();
-    updateMetar();
-    updateTaf();
-    updateBonaireVis();
-
-    setInterval(() => {
-      updateMetar();
-      updateBonaireVis();
-    }, metarInterval * 1000);
+    (async function init(){
+      updateAll();
+      setInterval(updateClocks,1000);
+      setInterval(updateAll,metarInterval*1000);
+    })();
   </script>
 </body>
 </html>
