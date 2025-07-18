@@ -81,7 +81,6 @@
     td.low-vis, td.gust {
       color: #66ffcc;
     }
-    /* highlight changed Wx in cyan */
     td.wx-change {
       color: #66ffcc !important;
     }
@@ -91,7 +90,7 @@
       font-family: monospace;
       color: inherit;
     }
-    td.clouds span, td.wx span {
+    td.clouds span {
       display: inline-block;
       margin-right: 0.4em;
       font-family: monospace;
@@ -100,17 +99,23 @@
     td.clouds span.normal { color: #fff; }
     td.clouds span.tcu,
     td.clouds span.cb     { color: #66ffcc; }
+
+    /* Align raw METAR left under each station */
     .raw-row td {
       background: #1a1a1a;
       padding: 16px;
+      text-align: left;
     }
     .raw-code {
+      margin: 0;
+      padding: 0;
       font-family: monospace;
       font-size: 1.4rem;
       white-space: pre-wrap;
       color: #999;
-      margin: 0.5em 0 0;
+      text-align: left;
     }
+
     #pressure-converter {
       text-align: center;
       font-family: monospace;
@@ -156,6 +161,7 @@
       color: #66ffcc;
     }
     #compact-taf span { white-space: nowrap; }
+
     #alert-history h2 {
       font-size: 1.4rem;
       color: #ff9999;
@@ -200,8 +206,6 @@
   <div id="bonaire-visibility">Bonaire Visibility: –</div>
   <div id="compact-taf">Loading TAF…</div>
 
-  <!-- Forecast section removed -->
-
   <button id="alert-toggle" onclick="toggleAlertHistory()">Show Alert History</button>
   <div id="alert-history" style="display:none">
     <h2>🚨 Alert History</h2>
@@ -219,7 +223,7 @@
     const watchStation  = 'TNCA';
     const metarInterval = 30;
 
-    // Store previous weather strings for change detection
+    let isLive = true;
     const prevTimes = {};
     const prevWx    = {};
     const alertStates = {};
@@ -254,9 +258,7 @@
 
     modeToggleEl.addEventListener('click', () => {
       isLive = !isLive;
-      modeToggleEl.textContent = isLive
-        ? 'Switch to Test Mode'
-        : 'Switch to Live Mode';
+      modeToggleEl.textContent = isLive ? 'Switch to Test Mode' : 'Switch to Live Mode';
       updateClocks();
       updateMetar();
       updateTaf();
@@ -265,10 +267,9 @@
 
     function toggleAlertHistory() {
       const sec = document.getElementById('alert-history');
-      const hidden = sec.style.display === 'none';
-      sec.style.display = hidden ? 'block' : 'none';
-      document.getElementById('alert-toggle').textContent =
-        hidden ? 'Hide Alert History' : 'Show Alert History';
+      const show = sec.style.display === 'none';
+      sec.style.display = show ? 'block' : 'none';
+      document.getElementById('alert-toggle').textContent = show ? 'Hide Alert History' : 'Show Alert History';
     }
 
     function updateClocks() {
@@ -277,7 +278,7 @@
       localTimeEl.textContent = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
       utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
       const elapsed = Math.floor((Date.now() - (prevTimes._ts||0)) / 1000);
-      nextUpdateEl.textContent = `Next in: ${Math.max(0,metarInterval - elapsed)}s`;
+      nextUpdateEl.textContent = `Next in: ${Math.max(0, metarInterval - elapsed)}s`;
     }
 
     async function updateMetar() {
@@ -293,38 +294,39 @@
           const toks = raw.split(' ');
           const code = toks[0]||'–', time = toks[1]||'–';
 
-          // parse values
           let wind='–', vis='–', td='–', qnh='–';
           let clouds=[], wxMatch=[];
-          toks.slice(2).forEach(tok=>{
-            if(/^Q\d{4}$/.test(tok)) {
+          toks.slice(2).forEach(tok => {
+            if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
               qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
-            }
-            else if(/KT$/.test(tok)) wind = tok;
-            else if(/^\d{4}$/.test(tok)) vis = tok;
-            else if(/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB|\/{3})?$/.test(tok) || tok==='///')
+            } else if (/KT$/.test(tok)) {
+              wind = tok;
+            } else if (/^\d{4}$/.test(tok)) {
+              vis = tok;
+            } else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB|\/{3})?$/.test(tok)|| tok==='///') {
               clouds.push(tok);
-            else if(/^M?\d{2}\/M?\d{2}$/.test(tok)) td = tok;
-            else if(/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)$/.test(tok))
+            } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
+              td = tok;
+            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)$/.test(tok)) {
               wxMatch.push(tok);
+            }
           });
 
-          // alerts
           const gustVal = +(wind.match(/G(\d{2,3})/)||[])[1]||0;
           const visVal  = /^\d+$/.test(vis)? +vis : 9999;
-          const visAlert   = visVal <= 5000;
-          const windAlert  = gustVal >= 35;
-          const weatherAlert = wxMatch.length > 0;
-          const stationAlert = visAlert || windAlert || weatherAlert;
+          const vA      = visVal <= 5000;
+          const wA      = gustVal >= 35;
+          const wxA     = wxMatch.length > 0;
+          const stationAlert = vA || wA || wxA;
 
           if (!alertStates[code] && stationAlert) {
             alertStates[code] = true;
-            if (code===watchStation) document.getElementById('alarm').play();
+            if (code === watchStation) document.getElementById('alarm').play();
             const reasons = [];
-            if (windAlert)    reasons.push(`💨 Gust ${gustVal}KT`);
-            if (visAlert)     reasons.push(`🌫️ Vis ${vis}m`);
-            if (weatherAlert) reasons.push(`⛈️ ${wxMatch.join(', ')}`);
+            if (wA)  reasons.push(`💨 Gust ${gustVal}KT`);
+            if (vA)  reasons.push(`🌫️ Vis ${vis}m`);
+            if (wxA) reasons.push(`⛈️ ${wxMatch.join(', ')}`);
             const li = document.createElement('li');
             li.textContent = `${new Date().toLocaleString()} – ${code}: ${reasons.join(' | ')}`;
             alertLogEl.prepend(li);
@@ -332,35 +334,26 @@
           if (alertStates[code] && !stationAlert) {
             alertStates[code] = false;
           }
-          if (code==='TNCS') {
+          if (code === 'TNCS') {
             visEl.textContent = `Bonaire Visibility: ${vis} meters`;
           }
 
-          // detect Wx change
-          const wxStr = wxMatch.join(', ') || '';
+          const wxStr     = wxMatch.join(', ');
           const wxChanged = prevWx[code] !== undefined && prevWx[code] !== wxStr;
           prevWx[code] = wxStr;
 
-          // build displays
-          const wxHtml = wxMatch.length
-            ? wxMatch.map(w=>`<span>${w}</span>`).join(' ')
-            : '–';
-          const cloudsHtml = clouds.length
-            ? clouds.map(c=>`<span class="${/TCU/.test(c)?'tcu':/CB/.test(c)?'cb':''}">${c}</span>`).join(' ')
-            : '–';
-
-          // mark time change
-          const timeChanged = time !== prevTimes[code];
+          const wxHtml  = wxMatch.length ? wxMatch.map(w=>`<span>${w}</span>`).join(' ') : '–';
+          const clHtml  = clouds.length ? clouds.map(c=>`<span class="${/TCU/.test(c)?'tcu':/CB/.test(c)?'cb':''}">${c}</span>`).join(' ') : '–';
+          const tChanged = time !== prevTimes[code];
           prevTimes[code] = time;
 
-          html += `
-            <tr>
+          html += `<tr>
               <td class="station-code ${stationAlert?'alert':''}">${code}</td>
-              <td class="${timeChanged?'bold-time':''}">${time}</td>
-              <td class="${windAlert?'gust':''}">${wind}</td>
-              <td class="${visAlert?'low-vis':''}">${vis}</td>
+              <td class="${tChanged?'bold-time':''}">${time}</td>
+              <td class="${wA?'gust':''}">${wind}</td>
+              <td class="${vA?'low-vis':''}">${vis}</td>
               <td class="wx ${wxChanged?'wx-change':''}">${wxHtml}</td>
-              <td class="clouds">${cloudsHtml}</td>
+              <td class="clouds">${clHtml}</td>
               <td>${td}</td>
               <td>${qnh}</td>
             </tr>
@@ -403,7 +396,6 @@
                headers:{ 'X-API-Key': API_KEY }})
              .then(r=>r.json()).then(j=>j.data||[]))
           : testTafData;
-
         tafEl.innerHTML = list.map(raw => {
           const st = raw.split(' ')[0];
           return `<div><strong>${st}:</strong> <span>${raw}</span></div>`;
@@ -421,13 +413,11 @@
     });
 
     // initialize
-    let isLive = true;
     updateClocks();
     updateMetar();
     updateTaf();
     updateBonaireVis();
 
-    // intervals
     setInterval(() => {
       updateMetar();
       updateBonaireVis();
