@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CAR/VEN METAR AND TAF</title>
   <style>
     body {
@@ -12,12 +13,14 @@
       padding: 24px;
       font-size: 1.6rem;
     }
+
     h1 {
       text-align: center;
       font-size: 2.4rem;
       margin-bottom: 0.5rem;
     }
-    button, #alert-toggle {
+
+    button {
       display: block;
       margin: 0.5rem auto;
       font-family: monospace;
@@ -30,24 +33,32 @@
       cursor: pointer;
       transition: background 0.3s;
     }
-    button:hover, #alert-toggle:hover {
+
+    button:hover {
       background: #006699;
     }
+
     #timers {
       text-align: center;
       font-family: monospace;
       margin-bottom: 0.5rem;
       font-size: 1.8rem;
     }
+
     #timers span { margin: 0 0.5rem; }
+
     #current-date, #local-time, #utc-time {
       color: #66ffcc;
       font-weight: bold;
     }
+
     #next-update {
       color: #999;
       font-size: 1.4rem;
     }
+
+    .table-wrapper { overflow-x: auto; }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -55,60 +66,49 @@
       font-size: 1.8rem;
       margin-top: 0.5rem;
     }
+
     th, td {
       padding: 12px;
       border: 1px solid #2a3b47;
       vertical-align: top;
       text-align: center;
     }
+
     th {
       background: #003b5a;
       color: #66ffcc;
       font-size: 1.8rem;
     }
-    td { color: #f2f2f2; }
+
     td.station-code {
       font-size: 2.4rem;
       color: #66ffcc;
     }
+
     td.station-code.alert {
       background: #660000;
       color: #ffcccc;
     }
+
     td.bold-time {
       background: #ffff99;
       color: #101820;
     }
+
     td.low-vis, td.gust {
       color: #66ffcc;
     }
+
     td.wx, td.clouds {
       white-space: nowrap;
     }
-    td.wx span,
-    td.clouds span {
-      display: inline-block;
-      margin-right: 0.4em;
-      font-family: monospace;
-    }
-    td.clouds span.nil    { color: #999; }
-    td.clouds span.normal { color: #fff; }
-    td.clouds span.tcu,
-    td.clouds span.cb     { color: #66ffcc; }
 
-    .raw-row td {
-      background: #1a1a1a;
-      padding: 16px;
-      text-align: left;
-    }
-    .raw-code {
-      margin: 0;
-      padding: 0;
+    .raw-metar {
+      font-size: 1.2rem;
+      color: #999;
       font-family: monospace;
-      font-size: 1.6rem;
-      white-space: pre-wrap;
-      color: #ccc;
       text-align: left;
+      padding: 4px 12px;
     }
 
     #pressure-converter {
@@ -117,6 +117,7 @@
       font-size: 1.2rem;
       margin: 1rem auto;
     }
+
     #pressure-converter input {
       width: 80px;
       padding: 4px 6px;
@@ -127,11 +128,13 @@
       background: #101820;
       color: #f2f2f2;
     }
+
     #pressure-output {
       margin-left: 0.5rem;
       font-size: 1.2rem;
       color: #ffff99;
     }
+
     #bonaire-visibility {
       text-align: center;
       font-family: monospace;
@@ -139,6 +142,7 @@
       color: #66ffcc;
       font-size: 1.4rem;
     }
+
     #compact-taf {
       margin-top: 1rem;
       font-family: monospace;
@@ -149,6 +153,7 @@
       max-height: 15rem;
       overflow-y: auto;
     }
+
     #compact-taf div { margin-bottom: 0.4rem; }
     #compact-taf strong {
       display: inline-block;
@@ -156,17 +161,28 @@
       color: #66ffcc;
       font-size: 1.4rem;
     }
-    #compact-taf span { white-space: nowrap; font-size: 1.4rem; }
 
-    #alert-history h2 {
-      font-size: 1.6rem;
-      color: #ff9999;
-      margin-bottom: 0.5rem;
+    @media (max-width: 768px) {
+      body { font-size: 1.2rem; padding: 12px; }
+      h1 { font-size: 1.8rem; }
+      button { font-size: 1rem; padding: 6px 12px; }
+      #timers { font-size: 1.4rem; }
+      table, th, td { font-size: 1.2rem; padding: 8px; }
+      td.station-code { font-size: 1.8rem; }
+      #pressure-converter input { width: 60px; font-size: 1rem; }
+      #compact-taf strong { width: auto; display: block; margin-bottom: 4px; }
+      #compact-taf span { display: block; font-size: 1.2rem; }
+      .raw-metar { font-size: 1rem; padding: 2px 8px; }
     }
-    #alert-log li {
-      font-size: 1.4rem;
-      margin: 0.25rem 0;
-      color: #ffcccc;
+
+    @media (max-width: 480px) {
+      th:nth-child(3), td:nth-child(3),
+      th:nth-child(5), td:nth-child(5),
+      th:nth-child(6), td:nth-child(6),
+      th:nth-child(8), td:nth-child(8) {
+        display: none;
+      }
+      table { font-size: 1rem; }
     }
   </style>
 </head>
@@ -182,17 +198,25 @@
     <span id="next-update">Next in: --s</span>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ICAO</th><th>Time</th><th>Wind</th><th>Vis</th>
-        <th>Wx</th><th>Clouds</th><th>Temp/Dew</th><th>QNH</th>
-      </tr>
-    </thead>
-    <tbody id="data">
-      <tr><td colspan="8">Loading…</td></tr>
-    </tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ICAO</th>
+          <th>Time</th>
+          <th>Wind</th>
+          <th>Vis</th>
+          <th>Wx</th>
+          <th>Clouds</th>
+          <th>Temp/Dew</th>
+          <th>QNH</th>
+        </tr>
+      </thead>
+      <tbody id="data">
+        <tr><td colspan="8">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <div id="pressure-converter">
     <label>Pressure (hPa):
@@ -203,12 +227,6 @@
 
   <div id="bonaire-visibility">Bonaire Visibility: –</div>
   <div id="compact-taf">Loading TAF…</div>
-
-  <button id="alert-toggle" onclick="toggleAlertHistory()">Show Alert History</button>
-  <div id="alert-history" style="display:none">
-    <h2>🚨 Alert History</h2>
-    <ul id="alert-log"></ul>
-  </div>
 
   <audio id="alarm"
          src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"
@@ -223,167 +241,187 @@
 
     let isLive    = true;
     let lastFetch = Date.now();
-    const prevTimes   = {};
-    const alertStates = {};
+    const prevTimes = {};
 
-    const modeToggleEl = document.getElementById('mode-toggle');
-    const dataEl       = document.getElementById('data');
-    const visEl        = document.getElementById('bonaire-visibility');
-    const tafEl        = document.getElementById('compact-taf');
-    const alertLogEl   = document.getElementById('alert-log');
-    const dateEl       = document.getElementById('current-date');
-    const localTimeEl  = document.getElementById('local-time');
-    const utcTimeEl    = document.getElementById('utc-time');
-    const nextUpdateEl = document.getElementById('next-update');
-    const pInput       = document.getElementById('pressure-input');
-    const pOutput      = document.getElementById('pressure-output');
+    const modeToggleEl = document.getElementById('mode-toggle'),
+          dataEl       = document.getElementById('data'),
+          visEl        = document.getElementById('bonaire-visibility'),
+          tafEl        = document.getElementById('compact-taf'),
+          dateEl       = document.getElementById('current-date'),
+          localTimeEl  = document.getElementById('local-time'),
+          utcTimeEl    = document.getElementById('utc-time'),
+          nextUpdateEl = document.getElementById('next-update'),
+          pInput       = document.getElementById('pressure-input'),
+          pOutput      = document.getElementById('pressure-output'),
+          alarmEl      = document.getElementById('alarm');
 
-    function pad(n) { return n.toString().padStart(2,'0'); }
+    const pad = n => n.toString().padStart(2, '0');
 
     modeToggleEl.addEventListener('click', () => {
       isLive = !isLive;
-      modeToggleEl.textContent = isLive ? 'Switch to Test Mode' : 'Switch to Live Mode';
+      modeToggleEl.textContent = isLive
+        ? 'Switch to Test Mode'
+        : 'Switch to Live Mode';
       updateAll();
     });
-
-    function toggleAlertHistory() {
-      const sec = document.getElementById('alert-history');
-      const show = sec.style.display === 'none';
-      sec.style.display = show ? 'block' : 'none';
-      document.getElementById('alert-toggle')
-              .textContent = show ? 'Hide Alert History' : 'Show Alert History';
-    }
 
     function updateClocks() {
       const now = new Date();
       dateEl.textContent      = `Date: ${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()}`;
       localTimeEl.textContent = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-      utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+      utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;      
       const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
-      nextUpdateEl.textContent = `Next in: ${Math.max(metarInterval - elapsed,0)}s`;
+      nextUpdateEl.textContent = `Next in: ${Math.max(metarInterval - elapsed, 0)}s`;
     }
 
     async function updateMetar() {
       try {
         const rawList = isLive
-          ? await fetch(`https://api.checkwx.com/metar/${metarStations.join(',')}`, {
-              headers:{ 'X-API-Key': API_KEY }
-            }).then(r=>r.json()).then(j=>j.data||[])
+          ? await fetch(
+              `https://api.checkwx.com/metar/${metarStations.join(',')}`,
+              { headers:{ 'X-API-Key': API_KEY }}
+            ).then(r => r.json()).then(j => j.data || [])
           : [
               "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
-              "TNCB 010300Z 03010KT 3000 -RA SCT025TCU 22/19 Q1011",
-              "TNCS 010300Z 01000KT 2000 FG FEW016/// 24/22 Q1015"
+              "TNCB 010300Z 03010KT 3000 -VCSH SCT025TCU 22/19 Q1011",
+              "TNCS 010300Z 01000KT 2000 FG FEW016/// 24/22 Q1015",
+              "SVVA 010300Z 02005KT 6000 VCSH SCT020 26/21 Q1013",
+              "TNCM 010300Z 06012KT 5000 -SHRA BKN015 24/22 Q1014",
+              "TNCC 010300Z 07008KT 8000 SHRA SCT030 23/21 Q1015"
             ];
 
         let html = '';
         rawList.forEach(raw => {
-          const toks = raw.split(' ');
-          const code = toks[0]||'–';
-          const time = toks[1]||'–';
-          let wind='–', vis='–', td='–', qnh='–';
-          const clouds=[]; const wxMatch=[];
+          const toks = raw.split(' '),
+                code = toks[0] || '–',
+                time = toks[1] || '–';
+          let wind = '–', vis = '–', td = '–', qnh = '–';
+          const clouds = [], wx = [];
 
           toks.slice(2).forEach(tok => {
             if (/^Q\d{4}$/.test(tok)) {
-              const h=+tok.slice(1);
-              qnh=`${h} – ${(h*0.02953).toFixed(2)}`;
+              const h = +tok.slice(1);
+              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
             } else if (/KT$/.test(tok)) {
-              wind=tok;
+              wind = tok;
             } else if (/^\d{4}$/.test(tok)) {
-              vis=tok;
+              vis = tok;
             } else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?/.test(tok)) {
               clouds.push(tok);
-            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)$/.test(tok)) {
-              wxMatch.push(tok);
+            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
+              wx.push(tok);
             } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
-              td=tok;
+              td = tok;
             }
           });
 
-          const gustVal  = +(wind.match(/G(\d{2,3})/)?.[1]||0);
-          const visVal   = /^\d+$/.test(vis)?+vis:9999;
-          const lowVis   = visVal<=5000;
-          const gustAlert= gustVal>=35;
-          const wxAlert  = wxMatch.length>0;
-          const cloudAlert=clouds.some(c=>/TCU|CB/.test(c));
-          const alertOn  = lowVis||gustAlert||wxAlert||cloudAlert;
+          const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1] || 0),
+                visVal     = /^\d+$/.test(vis) ? +vis : 9999,
+                lowVis     = visVal <= 5000,
+                gustAlert  = gustVal >= 35,
+                wxAlert    = wx.length > 0,
+                cloudAlert = clouds.some(c => /TCU|CB/.test(c)),
+                alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
 
-          if (!alertStates[code] && alertOn) {
-            alertStates[code]=true;
-            if (code===watchStation) document.getElementById('alarm').play();
-            const reasons=[];
-            if (gustAlert)   reasons.push(`💨 Gust ${gustVal}KT`);
-            if (lowVis)      reasons.push(`🌫️ Vis ${vis}m`);
-            if (wxAlert)     reasons.push(`⛈️ ${wxMatch.join(', ')}`);
-            if (cloudAlert)  reasons.push(`☁️ ${clouds.join(', ')}`);
-            const li=document.createElement('li');
-            li.textContent=`${new Date().toLocaleString()} – ${code}: ${reasons.join(' | ')}`;
-            alertLogEl.prepend(li);
+          if (code === watchStation && alertOn) {
+            alarmEl.play();
           }
-          if (alertStates[code] && !alertOn) {
-            alertStates[code]=false;
-          }
-          if (code==='TNCS') visEl.textContent=`Bonaire Visibility: ${vis} meters`;
 
-          const visCls   = lowVis?'low-vis':'';
-          const gustCls  = gustAlert?'gust':'';
-          const wxCls    = wxAlert?'low-vis':'';
-          const cloudCls = cloudAlert?'low-vis':'';
-
-          html+=`
+          html += `
             <tr>
-              <td class="station-code ${alertOn?'alert':''}">${code}</td>
-              <td class="${time!==prevTimes[code]?'bold-time':''}">${time}</td>
-              <td class="${gustCls}">${wind}</td>
-              <td class="${visCls}">${vis}</td>
-              <td class="wx ${wxCls}">${wxMatch.length?wxMatch.join(' '):'–'}</td>
-              <td class="clouds ${cloudCls}">${clouds.length?clouds.join(' '):'–'}</td>
+              <td class="station-code ${alertOn ? 'alert' : ''}">${code}</td>
+              <td class="${time !== prevTimes[code] ? 'bold-time' : ''}">${time}</td>
+              <td class="${gustAlert ? 'gust' : ''}">${wind}</td>
+              <td class="${lowVis ? 'low-vis' : ''}">${vis}</td>
+              <td class="wx ${wxAlert ? 'low-vis' : ''}">${wx.join(' ') || '–'}</td>
+              <td class="clouds ${cloudAlert ? 'low-vis' : ''}">${clouds.join(' ') || '–'}</td>
               <td>${td}</td>
               <td>${qnh}</td>
             </tr>
-            <tr class="raw-row"><td colspan="8"><pre class="raw-code">${raw}</pre></td></tr>`;
-          prevTimes[code]=time;
+            <tr>
+              <td colspan="8" class="raw-metar">${raw}</td>
+            </tr>`;
+          prevTimes[code] = time;
         });
 
-        dataEl.innerHTML=html;
-        lastFetch=Date.now();
-      }catch{
-        dataEl.innerHTML=`<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
-        lastFetch=Date.now();
+        dataEl.innerHTML = html;
+        lastFetch = Date.now();
+      }
+      catch {
+        dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+        lastFetch = Date.now();
       }
     }
 
-    async function updateBonaireVis(){
-      if(!isLive){visEl.textContent='Bonaire Visibility: test';return;}
-      try{
-        const t=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current')).then(r=>r.text());
-        const doc=new DOMParser().parseFromString(t,'text/html');
-        const row=Array.from(doc.querySelectorAll('tr')).find(tr=>tr.textContent.includes('Visibility (m)'));
-        visEl.textContent=`Bonaire Visibility: ${row?row.querySelectorAll('td')[1].textContent.trim()+'m':'–'}`;
-      }catch{visEl.textContent='Bonaire Visibility: n/a'}
+    async function updateBonaireVis() {
+      let scrapedVis = '–';
+      if (isLive) {
+        try {
+          const txt = await fetch(
+            'https://api.allorigins.win/raw?url=' +
+            encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current')
+          ).then(r => r.text());
+          const doc = new DOMParser().parseFromString(txt, 'text/html');
+          const row = Array.from(doc.querySelectorAll('tr'))
+                       .find(tr => tr.textContent.includes('Visibility (m)'));
+          if (row) scrapedVis = row.querySelectorAll('td')[1].textContent.trim() + 'm';
+        } catch {
+          scrapedVis = 'n/a';
+        }
+      } else {
+        scrapedVis = 'test';
+      }
+      visEl.textContent = `Bonaire Visibility: ${scrapedVis}`;
+      document.querySelectorAll('#data tr').forEach(tr => {
+        if (tr.children[0]?.textContent === 'TNCS') {
+          tr.children[3].textContent = scrapedVis;
+        }
+      });
     }
 
-    async function updateTaf(){
-      try{
-        const list=isLive
-          ?await fetch(`https://api.checkwx.com/taf/${tafStations.join(',')}`,{headers:{'X-API-Key':API_KEY}}).then(r=>r.json()).then(j=>j.data||[])
-          :["TNCB 010300Z 0103/0206 00000KT P6SM FEW020","TNCC 010300Z 0103/0206 02005KT P6SM SCT020"];
-        tafEl.innerHTML=list.map(r=>`<div><strong>${r.split(' ')[0]}:</strong> ${r}</div>`).join('');
-      }catch{tafEl.textContent='⚠️ Error loading TAF'}
+    async function updateTaf() {
+      try {
+        const list = isLive
+          ? await fetch(
+              `https://api.checkwx.com/taf/${tafStations.join(',')}`,
+              { headers:{ 'X-API-Key': API_KEY }}
+            ).then(r => r.json()).then(j => j.data || [])
+          : [
+              "TNCB 010300Z 0106/0206 03008KT P6SM SCT025",
+              "TNCC 010300Z 0106/0206 34010KT P6SM BKN020"
+            ];
+        tafEl.innerHTML = list
+          .map(r => {
+            const toks = r.split(' ');
+            return `<div><strong>${toks[0]}</strong> <span>${toks[1]}</span> ${toks.slice(2).join(' ')}</div>`;
+          })
+          .join('');
+      }
+      catch {
+        tafEl.textContent = '⚠️ Error loading TAF';
+      }
     }
 
-    function updateAll(){updateMetar();updateClocks();updateTaf();updateBonaireVis();}
+    function updatePressure() {
+      const hpa = parseFloat(pInput.value);
+      pOutput.textContent = isNaN(hpa)
+        ? '-- inHg'
+        : (hpa * 0.02953).toFixed(2) + ' inHg';
+    }
 
-    pInput.addEventListener('input',()=>{
-      const h=+pInput.value;
-      pOutput.textContent=isNaN(h)?'-- inHg':(h*0.02953).toFixed(2)+' inHg';
-    });
+    function updateAll() {
+      updateMetar();
+      updateClocks();
+      updateBonaireVis();
+      updateTaf();
+      updatePressure();
+    }
 
-    (async function init(){
-      updateAll();
-      setInterval(updateClocks,1000);
-      setInterval(updateAll,metarInterval*1000);
-    })();
+    pInput.addEventListener('input', updatePressure);
+
+    updateAll();
+    setInterval(updateClocks, 1000);
+    setInterval(updateAll, metarInterval * 1000);
   </script>
 </body>
 </html>
