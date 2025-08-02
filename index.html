@@ -98,15 +98,6 @@
       white-space: nowrap;
     }
 
-    .raw-metar {
-      font-size: 1.2rem;
-      color: #999;
-      font-family: monospace;
-      text-align: left;
-      padding: 4px 12px;
-    }
-
-    /* newly updated time cell: teal background, white text */
     td.time-updated {
       background: #20c997;
       color: #ffffff;
@@ -114,7 +105,6 @@
       transition: background 0.3s ease, color 0.3s ease;
     }
 
-    /* special TNCC 5-min-before highlight */
     td.time-highlight {
       background: #006600;
       color: #ffffff;
@@ -187,7 +177,6 @@
       #pressure-converter input { width: 60px; font-size: 1rem; }
       #compact-taf strong { width: auto; display: block; margin-bottom: 4px; }
       #compact-taf span { display: block; font-size: 1.2rem; }
-      .raw-metar { font-size: 1rem; padding: 2px 8px; }
     }
 
     @media (max-width: 480px) {
@@ -296,10 +285,9 @@
               headers: { 'X-API-Key': API_KEY }
             }).then(r => r.json()).then(j => j.data || [])
           : [
-              "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
-              "TNCB 010200Z 03010KT 3000 -TSRA SCT025TCU 22/19 Q1011",
-              "TNCC 012355Z 05012KT P6SM SCT020 24/22 Q1014",
-              "TNCP 012345Z 06008KT 9999 VCSH BKN///CB 18/12 Q1013"
+              "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012 TEMPO SHRA",
+              "TNCB 010200Z 03010KT 3000 -TSRA SCT///TCU 22/19 Q1011",
+              "TNCC 012355Z 05012KT P6SM VCSH SCT///CB 24/22 Q1014"
             ];
 
         let html = '';
@@ -308,11 +296,11 @@
         const prevHour        = (currentUTC_Hour + 23) % 24;
 
         rawList.forEach(raw => {
-          const toks     = raw.split(' ');
-          const code     = toks[0] || '–';
-          const time     = toks[1] || '000000Z';
-          const hrToken  = parseInt(time.slice(2, 4), 10);
-          const minToken = parseInt(time.slice(4, 6), 10);
+          const toks    = raw.split(' ');
+          const code    = toks[0] || '–';
+          const time    = toks[1] || '000000Z';
+          const hrToken = parseInt(time.slice(2, 4), 10);
+          const minToken= parseInt(time.slice(4, 6), 10);
 
           // freshness/dim
           let isFresh;
@@ -338,10 +326,16 @@
           const timeUpdated = prevTime !== undefined && prevTime !== time;
           const timeUpdatedClass = timeUpdated ? 'time-updated' : '';
 
+          // only parse elements up to the QNH token
+          const qIdx = toks.findIndex(tok => /^Q\d{4}$/.test(tok));
+          const dataToks = qIdx >= 0
+            ? toks.slice(2, qIdx + 1)
+            : toks.slice(2);
+
           // parse METAR elements
           let wind = '–', vis = '–', td = '–', qnh = '–';
           const clouds = [], wx = [];
-          toks.slice(2).forEach(tok => {
+          dataToks.forEach(tok => {
             if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
               qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
@@ -349,17 +343,12 @@
               wind = tok;
             } else if (/^\d{4}$/.test(tok)) {
               vis = tok;
-            } else {
-              // match FEW|SCT|BKN|OVC with either 3 digits or '///' and opt TCU/CB
-              const cMatch = tok.match(/^(FEW|SCT|BKN|OVC)(\d{3}|\/\/\/)(TCU|CB)?$/);
-              if (cMatch) {
-                // FEW025, OVC020CB, or FEW///TCU
-                clouds.push(cMatch[1] + cMatch[2] + (cMatch[3] || ''));
-              } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|VCSH|PL|GR|GS|UP|BR|TS|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
-                wx.push(tok);
-              } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
-                td = tok;
-              }
+            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|VCSH|PL|GR|GS|UP|BR|TS|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
+              wx.push(tok);
+            } else if (/^(FEW|SCT|BKN|OVC)(?:\d{3}(?:TCU|CB)?|\/\/\/(?:TCU|CB))$/.test(tok)) {
+              clouds.push(tok);
+            } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
+              td = tok;
             }
           });
 
@@ -368,7 +357,8 @@
           const lowVis     = visVal <= 5000;
           const gustAlert  = gustVal >= 35;
           const wxAlert    = wx.length > 0;
-          const cloudAlert = clouds.some(c => /TCU|CB|\/{3}/.test(c));
+          const cloudAlert = clouds.some(c =>
+                              /TCU|CB/.test(c));
           const alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
 
           if (code === watchStation && alertOn) {
@@ -385,22 +375,15 @@
               <td class="clouds ${cloudAlert ? 'low-vis' : ''}">${clouds.join(' ') || '–'}</td>
               <td>${td}</td>
               <td>${qnh}</td>
-            </tr>
-            <tr class="${dimClass}">
-              <td colspan="8" class="raw-metar">${raw}</td>
             </tr>`;
-
           prevTimes[code] = time;
         });
 
         dataEl.innerHTML = html;
         lastFetch = Date.now();
 
-        // remove highlight after 5 seconds
         document.querySelectorAll('td.time-updated').forEach(cell => {
-          setTimeout(() => {
-            cell.classList.remove('time-updated');
-          }, 5000);
+          setTimeout(() => cell.classList.remove('time-updated'), 5000);
         });
 
       } catch {
@@ -479,4 +462,3 @@
   </script>
 </body>
 </html>
-
