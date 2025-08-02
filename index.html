@@ -33,10 +33,7 @@
       cursor: pointer;
       transition: background 0.3s;
     }
-
-    button:hover {
-      background: #006699;
-    }
+    button:hover { background: #006699; }
 
     #timers {
       text-align: center;
@@ -44,21 +41,14 @@
       margin-bottom: 0.5rem;
       font-size: 1.8rem;
     }
-
     #timers span { margin: 0 0.5rem; }
-
     #current-date, #local-time, #utc-time {
       color: #66ffcc;
       font-weight: bold;
     }
-
-    #next-update {
-      color: #999;
-      font-size: 1.4rem;
-    }
+    #next-update { color: #999; font-size: 1.4rem; }
 
     .table-wrapper { overflow-x: auto; }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -66,54 +56,59 @@
       font-size: 1.8rem;
       margin-top: 0.5rem;
     }
-
     th, td {
       padding: 12px;
       border: 1px solid #2a3b47;
       vertical-align: top;
       text-align: center;
     }
-
     th {
       background: #003b5a;
       color: #66ffcc;
       font-size: 1.8rem;
     }
-
     td.station-code {
       font-size: 2.4rem;
       color: #66ffcc;
     }
-
     td.station-code.alert {
       background: #660000;
       color: #ffcccc;
     }
-
-    td.low-vis, td.gust {
-      color: #66ffcc;
-    }
-
-    td.wx, td.clouds {
-      white-space: nowrap;
-    }
-
+    td.low-vis, td.gust { color: #66ffcc; }
+    td.wx, td.clouds { white-space: nowrap; }
     td.time-updated {
       background: #20c997;
       color: #ffffff;
       font-weight: bold;
       transition: background 0.3s ease, color 0.3s ease;
     }
-
     td.time-highlight {
       background: #006600;
       color: #ffffff;
       font-weight: bold;
     }
-
     .dimmed {
       opacity: 0.4;
       transition: opacity 0.3s;
+    }
+
+    .raw-row td {
+      background: #1a2a33;
+      font-size: 1.2rem;
+      color: #cccccc;
+      text-align: left;
+      padding: 8px 12px;
+    }
+    .raw-current { margin-bottom: 4px; }
+    .raw-row details summary {
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .raw-row ul {
+      list-style: disc inside;
+      margin: 4px 0 0 16px;
+      padding: 0;
     }
 
     #pressure-converter {
@@ -122,7 +117,6 @@
       font-size: 1.2rem;
       margin: 1rem auto;
     }
-
     #pressure-converter input {
       width: 80px;
       padding: 4px 6px;
@@ -133,7 +127,6 @@
       background: #101820;
       color: #f2f2f2;
     }
-
     #pressure-output {
       margin-left: 0.5rem;
       font-size: 1.2rem;
@@ -158,7 +151,6 @@
       max-height: 15rem;
       overflow-y: auto;
     }
-
     #compact-taf div { margin-bottom: 0.4rem; }
     #compact-taf strong {
       display: inline-block;
@@ -175,7 +167,11 @@
       table, th, td { font-size: 1.2rem; padding: 8px; }
       td.station-code { font-size: 1.8rem; }
       #pressure-converter input { width: 60px; font-size: 1rem; }
-      #compact-taf strong { width: auto; display: block; margin-bottom: 4px; }
+      #compact-taf strong {
+        width: auto;
+        display: block;
+        margin-bottom: 4px;
+      }
       #compact-taf span { display: block; font-size: 1.2rem; }
     }
 
@@ -246,6 +242,7 @@
     let isLive    = true;
     let lastFetch = Date.now();
     const prevTimes = {};
+    const histories = {};
 
     const modeToggleEl = document.getElementById('mode-toggle');
     const dataEl       = document.getElementById('data');
@@ -287,22 +284,25 @@
           : [
               "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012 TEMPO SHRA",
               "TNCB 010200Z 03010KT 3000 -TSRA SCT///TCU 22/19 Q1011",
-              "TNCC 012355Z 05012KT P6SM VCSH SCT///CB 24/22 Q1014"
+              "TNCC 012355Z 05012KT P6SM SCT020 24/22 Q1014",
+              "TNCM 020450Z 12012KT 10000 -SHRA SCT025 26/22 Q1014",
+              "SVMI 020500Z 08010KT 9000 VCSH SCT020 28/21 Q1015",
+              "SVVA 020400Z 06008KT P6SM FEW013CB(NW)BKN016 FEW///CB 25/23 Q1013"
             ];
 
         let html = '';
-        const now            = new Date();
+        const now             = new Date();
         const currentUTC_Hour = now.getUTCHours();
         const prevHour        = (currentUTC_Hour + 23) % 24;
 
         rawList.forEach(raw => {
-          const toks    = raw.split(' ');
-          const code    = toks[0] || '–';
-          const time    = toks[1] || '000000Z';
-          const hrToken = parseInt(time.slice(2, 4), 10);
-          const minToken= parseInt(time.slice(4, 6), 10);
+          const toks     = raw.split(' ');
+          const code     = toks[0];
+          const time     = toks[1];
+          const hrToken  = parseInt(time.slice(2, 4), 10);
+          const minToken = parseInt(time.slice(4, 6), 10);
 
-          // freshness/dim
+          // freshness & highlighting
           let isFresh;
           if (code === 'TNCB') {
             isFresh = true;
@@ -313,58 +313,58 @@
             isFresh = hrToken >= currentUTC_Hour;
           }
           const dimClass = isFresh ? '' : 'dimmed';
-
-          // TNCC 5-min-before highlight
           const timeHighlight = (code === 'TNCC' &&
                                  hrToken === prevHour &&
                                  minToken >= 55)
                               ? 'time-highlight'
                               : '';
 
-          // detect newly updated time
+          // detect time updates
           const prevTime = prevTimes[code];
           const timeUpdated = prevTime !== undefined && prevTime !== time;
           const timeUpdatedClass = timeUpdated ? 'time-updated' : '';
 
-          // only parse elements up to the QNH token
+          // slice out QNH token if present
           const qIdx = toks.findIndex(tok => /^Q\d{4}$/.test(tok));
-          const dataToks = qIdx >= 0
-            ? toks.slice(2, qIdx + 1)
-            : toks.slice(2);
+          const dataToks = qIdx >= 0 ? toks.slice(2, qIdx+1) : toks.slice(2);
 
-          // parse METAR elements
           let wind = '–', vis = '–', td = '–', qnh = '–';
           const clouds = [], wx = [];
+
           dataToks.forEach(tok => {
             if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
-              qnh = `${h} – ${(h * 0.02953).toFixed(2)}`;
+              qnh = `${h} – ${(h*0.02953).toFixed(2)}`;
             } else if (/KT$/.test(tok)) {
               wind = tok;
             } else if (/^\d{4}$/.test(tok)) {
               vis = tok;
             } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|VCSH|PL|GR|GS|UP|BR|TS|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
               wx.push(tok);
-            } else if (/^(FEW|SCT|BKN|OVC)(?:\d{3}(?:TCU|CB)?|\/\/\/(?:TCU|CB))$/.test(tok)) {
-              clouds.push(tok);
+            } else if (/^(?:FEW|SCT|BKN|OVC)/.test(tok)) {
+              // split out layers like FEW013CB(NW), BKN016, FEW///CB, etc.
+              const layerRegex = /(?:FEW|SCT|BKN|OVC)(?:\d{3}(?:TCU|CB)?|\/\/\/(?:TCU|CB)?)(?:\([^)]*\))?/g;
+              const matches = tok.match(layerRegex);
+              if (matches) matches.forEach(layer => clouds.push(layer));
             } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
               td = tok;
             }
           });
 
-          const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1] || 0);
+          // alerts
+          const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1]||0);
           const visVal     = /^\d+$/.test(vis) ? +vis : 9999;
           const lowVis     = visVal <= 5000;
           const gustAlert  = gustVal >= 35;
           const wxAlert    = wx.length > 0;
-          const cloudAlert = clouds.some(c =>
-                              /TCU|CB/.test(c));
+          const cloudAlert = clouds.some(c => /TCU|CB/.test(c));
           const alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
 
           if (code === watchStation && alertOn) {
             alarmEl.play();
           }
 
+          // build row
           html += `
             <tr class="${dimClass}">
               <td class="station-code ${alertOn ? 'alert' : ''}">${code}</td>
@@ -376,16 +376,36 @@
               <td>${td}</td>
               <td>${qnh}</td>
             </tr>`;
+
+          // raw & history rows
+          histories[code] = histories[code] || [];
+          if (!histories[code].length || histories[code].slice(-1)[0] !== raw) {
+            histories[code].push(raw);
+            if (histories[code].length > 5) histories[code].shift();
+          }
+          const past = histories[code].slice(0, -1);
+
+          html += `
+            <tr class="raw-row">
+              <td colspan="8">
+                <div class="raw-current">Raw: ${raw}</div>
+                ${past.length
+                  ? `<details><summary>Past METARs</summary><ul>${past
+                      .map(r => `<li>${r}</li>`).join('')}</ul></details>`
+                  : ''}
+              </td>
+            </tr>`;
+
           prevTimes[code] = time;
         });
 
         dataEl.innerHTML = html;
         lastFetch = Date.now();
 
+        // fade out new‐time highlight
         document.querySelectorAll('td.time-updated').forEach(cell => {
           setTimeout(() => cell.classList.remove('time-updated'), 5000);
         });
-
       } catch {
         dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
         lastFetch = Date.now();
@@ -398,12 +418,13 @@
         try {
           const txt = await fetch(
             'https://api.allorigins.win/raw?url=' +
-            encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current')
+              encodeURIComponent('https://www.knmidc.org/weather/bonaire/?Current')
           ).then(r => r.text());
-          const doc = new DOMParser().parseFromString(txt, 'text/html');
+          const doc = new DOMParser().parseFromString(txt,'text/html');
           const row = Array.from(doc.querySelectorAll('tr'))
                         .find(tr => tr.textContent.includes('Visibility (m)'));
-          if (row) scrapedVis = row.querySelectorAll('td')[1].textContent.trim() + 'm';
+          if (row)
+            scrapedVis = row.querySelectorAll('td')[1].textContent.trim() + 'm';
         } catch {
           scrapedVis = 'n/a';
         }
@@ -425,16 +446,13 @@
               headers: { 'X-API-Key': API_KEY }
             }).then(r => r.json()).then(j => j.data || [])
           : [
-              "TNCB 010300Z 0106/0206 03008KT P6SM SCT025",
-              "TNCC 010300Z 0106/0206 34010KT P6SM BKN020"
+              'TNCB 010300Z 0106/0206 03008KT P6SM SCT025',
+              'TNCC 010300Z 0106/0206 34010KT P6SM BKN020'
             ];
-
-        tafEl.innerHTML = list
-          .map(r => {
-            const toks = r.split(' ');
-            return `<div><strong>${toks[0]}</strong> <span>${toks[1]}</span> ${toks.slice(2).join(' ')}</div>`;
-          })
-          .join('');
+        tafEl.innerHTML = list.map(r => {
+          const toks = r.split(' ');
+          return `<div><strong>${toks[0]}</strong> <span>${toks[1]}</span> ${toks.slice(2).join(' ')}</div>`;
+        }).join('');
       } catch {
         tafEl.textContent = '⚠️ Error loading TAF';
       }
@@ -462,3 +480,4 @@
   </script>
 </body>
 </html>
+
