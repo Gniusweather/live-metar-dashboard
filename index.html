@@ -283,11 +283,11 @@
             ).then(r => r.json()).then(j => j.data || [])
           : [
               "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
-              "TNCB 010300Z 03010KT 3000 -VCSH SCT025TCU 22/19 Q1011",
-              "TNCS 010300Z 01000KT 2000 FG FEW016/// 24/22 Q1015",
+              "TNCB 010300Z 03010KT 3000 -TSRA SCT025TCU 22/19 Q1011",
+              "TNCS 010300Z 01000KT 2000 TS FEW016/// 24/22 Q1015",
               "SVVA 010300Z 02005KT 6000 VCSH SCT020 26/21 Q1013",
               "TNCM 010300Z 06012KT 5000 -SHRA BKN015 24/22 Q1014",
-              "TNCC 010300Z 07008KT 8000 SHRA SCT030 23/21 Q1015"
+              "TNCC 010300Z 07008KT 8000 +SHRA SCT030 23/21 Q1015"
             ];
 
         let html = '';
@@ -308,7 +308,7 @@
               vis = tok;
             } else if (/^(FEW|SCT|BKN|OVC)\d{3}(TCU|CB)?/.test(tok)) {
               clouds.push(tok);
-            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
+            } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|VCSH|PL|GR|GS|UP|BR|TS|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
               wx.push(tok);
             } else if (/^M?\d{2}\/M?\d{2}$/.test(tok)) {
               td = tok;
@@ -425,3 +425,4 @@
   </script>
 </body>
 </html>
+
