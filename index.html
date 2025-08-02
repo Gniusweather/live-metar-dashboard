@@ -33,7 +33,9 @@
       cursor: pointer;
       transition: background 0.3s;
     }
-    button:hover { background: #006699; }
+    button:hover {
+      background: #006699;
+    }
 
     #timers {
       text-align: center;
@@ -282,11 +284,11 @@
               headers: { 'X-API-Key': API_KEY }
             }).then(r => r.json()).then(j => j.data || [])
           : [
-              "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012 TEMPO SHRA",
-              "TNCB 010200Z 03010KT 3000 -TSRA SCT///TCU 22/19 Q1011",
+              "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
+              "TNCB 010200Z 03010KT 3000 -TSRA SCT025TCU 22/19 Q1011",
               "TNCC 012355Z 05012KT P6SM SCT020 24/22 Q1014",
-              "TNCM 020450Z 12012KT 10000 -SHRA SCT025 26/22 Q1014",
-              "SVMI 020500Z 08010KT 9000 VCSH SCT020 28/21 Q1015",
+              "TNCM 020450Z 12012KT 10000 SCT025 26/22 Q1014",
+              "SVMI 020500Z 08010KT 9000 SCT020 28/21 Q1015",
               "SVVA 020400Z 06008KT P6SM FEW013CB(NW)BKN016 FEW///CB 25/23 Q1013"
             ];
 
@@ -302,7 +304,6 @@
           const hrToken  = parseInt(time.slice(2, 4), 10);
           const minToken = parseInt(time.slice(4, 6), 10);
 
-          // freshness & highlighting
           let isFresh;
           if (code === 'TNCB') {
             isFresh = true;
@@ -313,18 +314,16 @@
             isFresh = hrToken >= currentUTC_Hour;
           }
           const dimClass = isFresh ? '' : 'dimmed';
+
           const timeHighlight = (code === 'TNCC' &&
                                  hrToken === prevHour &&
                                  minToken >= 55)
-                              ? 'time-highlight'
-                              : '';
+                              ? 'time-highlight' : '';
 
-          // detect time updates
           const prevTime = prevTimes[code];
           const timeUpdated = prevTime !== undefined && prevTime !== time;
           const timeUpdatedClass = timeUpdated ? 'time-updated' : '';
 
-          // slice out QNH token if present
           const qIdx = toks.findIndex(tok => /^Q\d{4}$/.test(tok));
           const dataToks = qIdx >= 0 ? toks.slice(2, qIdx+1) : toks.slice(2);
 
@@ -342,7 +341,6 @@
             } else if (/^(?:\+|-)?(?:VC)?(?:MI|PR|BC|DR|BL|SH|TS|FZ)?(?:DZ|RA|SN|SG|VCSH|PL|GR|GS|UP|BR|TS|FU|DU|SA|HZ|PY|PO|SQ|FC|SS|DS|VA)$/.test(tok)) {
               wx.push(tok);
             } else if (/^(?:FEW|SCT|BKN|OVC)/.test(tok)) {
-              // split out layers like FEW013CB(NW), BKN016, FEW///CB, etc.
               const layerRegex = /(?:FEW|SCT|BKN|OVC)(?:\d{3}(?:TCU|CB)?|\/\/\/(?:TCU|CB)?)(?:\([^)]*\))?/g;
               const matches = tok.match(layerRegex);
               if (matches) matches.forEach(layer => clouds.push(layer));
@@ -351,7 +349,6 @@
             }
           });
 
-          // alerts
           const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1]||0);
           const visVal     = /^\d+$/.test(vis) ? +vis : 9999;
           const lowVis     = visVal <= 5000;
@@ -364,7 +361,6 @@
             alarmEl.play();
           }
 
-          // build row
           html += `
             <tr class="${dimClass}">
               <td class="station-code ${alertOn ? 'alert' : ''}">${code}</td>
@@ -377,7 +373,6 @@
               <td>${qnh}</td>
             </tr>`;
 
-          // raw & history rows
           histories[code] = histories[code] || [];
           if (!histories[code].length || histories[code].slice(-1)[0] !== raw) {
             histories[code].push(raw);
@@ -391,7 +386,8 @@
                 <div class="raw-current">Raw: ${raw}</div>
                 ${past.length
                   ? `<details><summary>Past METARs</summary><ul>${past
-                      .map(r => `<li>${r}</li>`).join('')}</ul></details>`
+                      .map(r => `<li>${r}</li>`)
+                      .join('')}</ul></details>`
                   : ''}
               </td>
             </tr>`;
@@ -402,7 +398,6 @@
         dataEl.innerHTML = html;
         lastFetch = Date.now();
 
-        // fade out new‐time highlight
         document.querySelectorAll('td.time-updated').forEach(cell => {
           setTimeout(() => cell.classList.remove('time-updated'), 5000);
         });
@@ -474,6 +469,14 @@
     }
 
     pInput.addEventListener('input', updatePressure);
+
+    // Copy on double-click
+    document.querySelector('.table-wrapper').addEventListener('dblclick', e => {
+      const td = e.target.closest('td');
+      if (!td) return;
+      navigator.clipboard.writeText(td.textContent.trim());
+    });
+
     updateAll();
     setInterval(updateClocks, 1000);
     setInterval(updateAll, metarInterval * 1000);
