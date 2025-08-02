@@ -90,11 +90,6 @@
       color: #ffcccc;
     }
 
-    td.bold-time {
-      background: #ffff99;
-      color: #101820;
-    }
-
     td.low-vis, td.gust {
       color: #66ffcc;
     }
@@ -109,6 +104,25 @@
       font-family: monospace;
       text-align: left;
       padding: 4px 12px;
+    }
+
+    /* highlight any freshly updated time */
+    td.time-updated {
+      background: #ffaa00;
+      color: #101820;
+      font-weight: bold;
+    }
+
+    /* special TNCC 5-min-before highlight */
+    td.time-highlight {
+      background: #006600;
+      color: #ffffff;
+      font-weight: bold;
+    }
+
+    .dimmed {
+      opacity: 0.4;
+      transition: opacity 0.3s;
     }
 
     #pressure-converter {
@@ -243,17 +257,17 @@
     let lastFetch = Date.now();
     const prevTimes = {};
 
-    const modeToggleEl = document.getElementById('mode-toggle'),
-          dataEl       = document.getElementById('data'),
-          visEl        = document.getElementById('bonaire-visibility'),
-          tafEl        = document.getElementById('compact-taf'),
-          dateEl       = document.getElementById('current-date'),
-          localTimeEl  = document.getElementById('local-time'),
-          utcTimeEl    = document.getElementById('utc-time'),
-          nextUpdateEl = document.getElementById('next-update'),
-          pInput       = document.getElementById('pressure-input'),
-          pOutput      = document.getElementById('pressure-output'),
-          alarmEl      = document.getElementById('alarm');
+    const modeToggleEl = document.getElementById('mode-toggle');
+    const dataEl       = document.getElementById('data');
+    const visEl        = document.getElementById('bonaire-visibility');
+    const tafEl        = document.getElementById('compact-taf');
+    const dateEl       = document.getElementById('current-date');
+    const localTimeEl  = document.getElementById('local-time');
+    const utcTimeEl    = document.getElementById('utc-time');
+    const nextUpdateEl = document.getElementById('next-update');
+    const pInput       = document.getElementById('pressure-input');
+    const pOutput      = document.getElementById('pressure-output');
+    const alarmEl      = document.getElementById('alarm');
 
     const pad = n => n.toString().padStart(2, '0');
 
@@ -269,7 +283,7 @@
       const now = new Date();
       dateEl.textContent      = `Date: ${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()}`;
       localTimeEl.textContent = `Local: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-      utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;      
+      utcTimeEl.textContent   = `UTC: ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
       const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
       nextUpdateEl.textContent = `Next in: ${Math.max(metarInterval - elapsed, 0)}s`;
     }
@@ -277,27 +291,54 @@
     async function updateMetar() {
       try {
         const rawList = isLive
-          ? await fetch(
-              `https://api.checkwx.com/metar/${metarStations.join(',')}`,
-              { headers:{ 'X-API-Key': API_KEY }}
-            ).then(r => r.json()).then(j => j.data || [])
+          ? await fetch(`https://api.checkwx.com/metar/${metarStations.join(',')}`, {
+              headers: { 'X-API-Key': API_KEY }
+            }).then(r => r.json()).then(j => j.data || [])
           : [
               "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
-              "TNCB 010300Z 03010KT 3000 -TSRA SCT025TCU 22/19 Q1011",
-              "TNCS 010300Z 01000KT 2000 TS FEW016/// 24/22 Q1015",
-              "SVVA 010300Z 02005KT 6000 VCSH SCT020 26/21 Q1013",
-              "TNCM 010300Z 06012KT 5000 -SHRA BKN015 24/22 Q1014",
-              "TNCC 010300Z 07008KT 8000 +SHRA SCT030 23/21 Q1015"
+              "TNCB 010200Z 03010KT 3000 -TSRA SCT025TCU 22/19 Q1011",
+              "TNCC 012355Z 05012KT P6SM SCT020 24/22 Q1014"
             ];
 
         let html = '';
+        const now              = new Date();
+        const currentUTC_Hour   = now.getUTCHours();
+        const currentUTC_Minute = now.getUTCMinutes();
+        const prevHour = (currentUTC_Hour + 23) % 24;
+
         rawList.forEach(raw => {
-          const toks = raw.split(' '),
-                code = toks[0] || '–',
-                time = toks[1] || '–';
+          const toks     = raw.split(' ');
+          const code     = toks[0] || '–';
+          const time     = toks[1] || '000000Z';
+          const hrToken  = parseInt(time.slice(2, 4), 10);
+          const minToken = parseInt(time.slice(4, 6), 10);
+
+          // determine freshness
+          let isFresh;
+          if (code === 'TNCB') {
+            isFresh = true;
+          } else if (code === 'TNCC') {
+            isFresh = hrToken === currentUTC_Hour ||
+                      (hrToken === prevHour && minToken >= 55);
+          } else {
+            isFresh = hrToken >= currentUTC_Hour;
+          }
+          const dimClass = isFresh ? '' : 'dimmed';
+
+          // TNCC 5-min-before highlight
+          const timeHighlight = (code === 'TNCC' &&
+                                 hrToken === prevHour &&
+                                 minToken >= 55)
+                              ? 'time-highlight'
+                              : '';
+
+          // any changed time from previous fetch
+          const timeUpdated = prevTimes[code] !== time;
+          const timeUpdatedClass = timeUpdated ? 'time-updated' : '';
+
+          // parse rest
           let wind = '–', vis = '–', td = '–', qnh = '–';
           const clouds = [], wx = [];
-
           toks.slice(2).forEach(tok => {
             if (/^Q\d{4}$/.test(tok)) {
               const h = +tok.slice(1);
@@ -315,22 +356,22 @@
             }
           });
 
-          const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1] || 0),
-                visVal     = /^\d+$/.test(vis) ? +vis : 9999,
-                lowVis     = visVal <= 5000,
-                gustAlert  = gustVal >= 35,
-                wxAlert    = wx.length > 0,
-                cloudAlert = clouds.some(c => /TCU|CB/.test(c)),
-                alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
+          const gustVal    = +(wind.match(/G(\d{2,3})/)?.[1] || 0);
+          const visVal     = /^\d+$/.test(vis) ? +vis : 9999;
+          const lowVis     = visVal <= 5000;
+          const gustAlert  = gustVal >= 35;
+          const wxAlert    = wx.length > 0;
+          const cloudAlert = clouds.some(c => /TCU|CB/.test(c));
+          const alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
 
           if (code === watchStation && alertOn) {
             alarmEl.play();
           }
 
           html += `
-            <tr>
+            <tr class="${dimClass}">
               <td class="station-code ${alertOn ? 'alert' : ''}">${code}</td>
-              <td class="${time !== prevTimes[code] ? 'bold-time' : ''}">${time}</td>
+              <td class="${timeHighlight} ${timeUpdatedClass}">${time}</td>
               <td class="${gustAlert ? 'gust' : ''}">${wind}</td>
               <td class="${lowVis ? 'low-vis' : ''}">${vis}</td>
               <td class="wx ${wxAlert ? 'low-vis' : ''}">${wx.join(' ') || '–'}</td>
@@ -338,16 +379,16 @@
               <td>${td}</td>
               <td>${qnh}</td>
             </tr>
-            <tr>
+            <tr class="${dimClass}">
               <td colspan="8" class="raw-metar">${raw}</td>
             </tr>`;
+
           prevTimes[code] = time;
         });
 
         dataEl.innerHTML = html;
         lastFetch = Date.now();
-      }
-      catch {
+      } catch {
         dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
         lastFetch = Date.now();
       }
@@ -363,7 +404,7 @@
           ).then(r => r.text());
           const doc = new DOMParser().parseFromString(txt, 'text/html');
           const row = Array.from(doc.querySelectorAll('tr'))
-                       .find(tr => tr.textContent.includes('Visibility (m)'));
+                        .find(tr => tr.textContent.includes('Visibility (m)'));
           if (row) scrapedVis = row.querySelectorAll('td')[1].textContent.trim() + 'm';
         } catch {
           scrapedVis = 'n/a';
@@ -382,22 +423,21 @@
     async function updateTaf() {
       try {
         const list = isLive
-          ? await fetch(
-              `https://api.checkwx.com/taf/${tafStations.join(',')}`,
-              { headers:{ 'X-API-Key': API_KEY }}
-            ).then(r => r.json()).then(j => j.data || [])
+          ? await fetch(`https://api.checkwx.com/taf/${tafStations.join(',')}`, {
+              headers: { 'X-API-Key': API_KEY }
+            }).then(r => r.json()).then(j => j.data || [])
           : [
               "TNCB 010300Z 0106/0206 03008KT P6SM SCT025",
               "TNCC 010300Z 0106/0206 34010KT P6SM BKN020"
             ];
+
         tafEl.innerHTML = list
           .map(r => {
             const toks = r.split(' ');
             return `<div><strong>${toks[0]}</strong> <span>${toks[1]}</span> ${toks.slice(2).join(' ')}</div>`;
           })
           .join('');
-      }
-      catch {
+      } catch {
         tafEl.textContent = '⚠️ Error loading TAF';
       }
     }
@@ -418,11 +458,9 @@
     }
 
     pInput.addEventListener('input', updatePressure);
-
     updateAll();
     setInterval(updateClocks, 1000);
     setInterval(updateAll, metarInterval * 1000);
   </script>
 </body>
 </html>
-
