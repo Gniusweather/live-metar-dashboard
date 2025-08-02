@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CAR/VEN METAR AND TAF</title>
+
+  <!-- Font Awesome for icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+  />
+
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -16,7 +23,7 @@
 
     h1 {
       text-align: center;
-      font-size: 2.4rem;
+      font-size: 1.8rem;    /* smaller title */
       margin-bottom: 0.5rem;
     }
 
@@ -163,7 +170,7 @@
 
     @media (max-width: 768px) {
       body { font-size: 1.2rem; padding: 12px; }
-      h1 { font-size: 1.8rem; }
+      h1 { font-size: 1.6rem; }
       button { font-size: 1rem; padding: 6px 12px; }
       #timers { font-size: 1.4rem; }
       table, th, td { font-size: 1.2rem; padding: 8px; }
@@ -216,6 +223,19 @@
       td:nth-of-type(6):before { content: "Clouds"; }
       td:nth-of-type(7):before { content: "Temp/Dew"; }
       td:nth-of-type(8):before { content: "QNH"; }
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 1rem;
+      color: #66ffcc;
+      font-family: 'Inter', sans-serif;
+    }
+    footer i {
+      margin: 0 0.25rem;
+      color: #f2f2f2;
     }
   </style>
 </head>
@@ -512,5 +532,12 @@
     setInterval(updateClocks, 1000);
     setInterval(updateAll, metarInterval * 1000);
   </script>
+
+  <footer>
+    Created by GNius. Powered by
+    <i class="fas fa-robot"></i> Copilot and
+    <i class="fab fa-github"></i> GitHub.
+  </footer>
+
 </body>
 </html>
