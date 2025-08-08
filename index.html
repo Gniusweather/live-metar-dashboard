@@ -23,7 +23,7 @@
 
     h1 {
       text-align: center;
-      font-size: 1.8rem;    /* smaller title */
+      font-size: 1.8rem;
       margin-bottom: 0.5rem;
     }
 
@@ -100,6 +100,16 @@
     .dimmed {
       opacity: 0.4;
       transition: opacity 0.3s;
+    }
+
+    /* flash animation for new data */
+    @keyframes flash {
+      0% { box-shadow: 0 0 0 0 rgba(102,255,204,0.9); }
+      60% { box-shadow: 0 0 14px 6px rgba(102,255,204,0.18); }
+      100% { box-shadow: 0 0 0 0 rgba(102,255,204,0); }
+    }
+    .new-data {
+      animation: flash 1.2s ease-out;
     }
 
     .raw-row td {
@@ -281,21 +291,23 @@
   <div id="bonaire-visibility">Bonaire Visibility: –</div>
   <div id="compact-taf">Loading TAF…</div>
 
-  <audio id="alarm"
-         src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-         preload="auto"></audio>
+  <!-- Single beep audio (plays once when any station has updated after initial load) -->
+  <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
   <script>
+    // --- CONFIG ---
     const API_KEY       = 'fb135a94c0574db4b26082b70705b4af';
     const metarStations = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA','TNCS'];
     const tafStations   = ['TNCB','TNCC'];
-    const watchStation  = 'TNCA';
-    const metarInterval = 30;
+    let metarInterval   = 10; // seconds for polling; adjust as needed
+    // ---------------
 
-    let isLive    = true;
+    let isLive   = true;
     let lastFetch = Date.now();
-    const prevTimes = {};
-    const histories = {};
+    const prevTimes = {};   // last time token per ICAO
+    const prevRaw   = {};   // last full raw METAR per ICAO
+    const histories = {};   // in-memory history of raw strings
+    let initialLoad = true; // don't beep on first successful population
 
     const modeToggleEl = document.getElementById('mode-toggle');
     const dataEl       = document.getElementById('data');
@@ -307,7 +319,7 @@
     const nextUpdateEl = document.getElementById('next-update');
     const pInput       = document.getElementById('pressure-input');
     const pOutput      = document.getElementById('pressure-output');
-    const alarmEl      = document.getElementById('alarm');
+    const beepEl       = document.getElementById('beep');
 
     const pad = n => n.toString().padStart(2, '0');
 
@@ -333,14 +345,18 @@
         const rawList = isLive
           ? await fetch(`https://api.checkwx.com/metar/${metarStations.join(',')}`, {
               headers: { 'X-API-Key': API_KEY }
-            }).then(r => r.json()).then(j => j.data || [])
+            }).then(r => {
+              if (!r.ok) throw new Error('CheckWX response not OK: ' + r.status);
+              return r.json();
+            }).then(j => j.data || [])
           : [
               "TNCA 010300Z 04015G40KT 4500 +TSRA OVC020CB 20/18 Q1012",
               "TNCB 010200Z 03010KT 3000 -TSRA SCT///TCU 22/19 Q1011",
               "TNCC 012355Z 05012KT P6SM SCT020 24/22 Q1014",
               "TNCM 020450Z 12012KT 10000 -SHRA SCT025 26/22 Q1014",
               "SVMI 020500Z 08010KT 9000 VCSH SCT020 28/21 Q1015",
-              "SVVA 020400Z 06008KT P6SM FEW013CB(NW)BKN016 FEW///CB 25/23 Q1013"
+              "SVVA 020400Z 06008KT P6SM FEW013CB(NW)BKN016 FEW///CB 25/23 Q1013",
+              "TNCS 020520Z 12005KT 5000 BR OVC010 24/22 Q1011"
             ];
 
         let html = '';
@@ -348,13 +364,16 @@
         const currentUTC_Hour = now.getUTCHours();
         const prevHour        = (currentUTC_Hour + 23) % 24;
 
+        let anyNewRawThisCycle = false;
+
         rawList.forEach(raw => {
           const toks     = raw.split(' ');
           const code     = toks[0];
-          const time     = toks[1];
-          const hrToken  = parseInt(time.slice(2, 4), 10);
-          const minToken = parseInt(time.slice(4, 6), 10);
+          const time     = toks[1] || '';
+          const hrToken  = time && time.length >= 4 ? parseInt(time.slice(2, 4), 10) : null;
+          const minToken = time && time.length >= 6 ? parseInt(time.slice(4, 6), 10) : null;
 
+          // freshness logic (preserves your existing rules)
           let isFresh;
           if (code === 'TNCB') {
             isFresh = true;
@@ -371,10 +390,7 @@
                                  minToken >= 55)
                               ? 'time-highlight' : '';
 
-          const prevTime = prevTimes[code];
-          const timeUpdated = prevTime !== undefined && prevTime !== time;
-          const timeUpdatedClass = timeUpdated ? 'time-updated' : '';
-
+          // find QNH and other tokens
           const qIdx = toks.findIndex(tok => /^Q\d{4}$/.test(tok));
           const dataToks = qIdx >= 0 ? toks.slice(2, qIdx+1) : toks.slice(2);
 
@@ -408,14 +424,19 @@
           const cloudAlert = clouds.some(c => /TCU|CB/.test(c));
           const alertOn    = lowVis || gustAlert || wxAlert || cloudAlert;
 
-          if (code === watchStation && alertOn) {
-            alarmEl.play();
-          }
+          // detect raw change vs previously stored raw
+          const prevRawForCode = prevRaw[code];
+          const isNewRaw = prevRawForCode === undefined ? false : (prevRawForCode !== raw);
 
+          // mark that at least one station changed this cycle
+          if (isNewRaw) anyNewRawThisCycle = true;
+
+          // build HTML (add visual new-data marker if raw changed)
+          const newDataClass = isNewRaw ? ' new-data time-updated' : '';
           html += `
             <tr class="${dimClass}">
               <td class="station-code ${alertOn ? 'alert' : ''}">${code}</td>
-              <td class="${timeHighlight} ${timeUpdatedClass}">${time}</td>
+              <td class="${timeHighlight} ${newDataClass}">${time}</td>
               <td class="${gustAlert ? 'gust' : ''}">${wind}</td>
               <td class="${lowVis ? 'low-vis' : ''}">${vis}</td>
               <td class="wx ${wxAlert ? 'low-vis' : ''}">${wx.join(' ') || '–'}</td>
@@ -424,10 +445,11 @@
               <td>${qnh}</td>
             </tr>`;
 
+          // histories
           histories[code] = histories[code] || [];
           if (!histories[code].length || histories[code].slice(-1)[0] !== raw) {
             histories[code].push(raw);
-            if (histories[code].length > 5) histories[code].shift();
+            if (histories[code].length > 8) histories[code].shift();
           }
           const past = histories[code].slice(0, -1);
 
@@ -443,18 +465,38 @@
               </td>
             </tr>`;
 
+          // update stored values after processing
           prevTimes[code] = time;
+          prevRaw[code] = raw;
         });
 
         dataEl.innerHTML = html;
         lastFetch = Date.now();
 
+        // If this is NOT the first successful population and any station changed, beep once
+        if (!initialLoad && anyNewRawThisCycle) {
+          try {
+            beepEl.currentTime = 0;
+            // play may be blocked until user interacts; catch and log
+            beepEl.play().catch(e => console.warn('Beep play blocked:', e));
+          } catch (e) {
+            console.warn('Beep play error:', e);
+          }
+        }
+
+        // After first successful update, mark initialLoad false
+        initialLoad = false;
+
+        // remove time-updated class after a brief delay so new-data flash ends
         document.querySelectorAll('td.time-updated').forEach(cell => {
-          setTimeout(() => cell.classList.remove('time-updated'), 5000);
+          setTimeout(() => cell.classList.remove('time-updated'), 1500);
         });
-      } catch {
-        dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR</td></tr>`;
+
+      } catch (err) {
+        console.error('METAR fetch error:', err);
+        dataEl.innerHTML = `<tr><td colspan="8">⚠️ Error loading METAR — ${err.message || 'unknown'}</td></tr>`;
         lastFetch = Date.now();
+        // keep initialLoad as-is so we still don't beep on first good load after errors
       }
     }
 
@@ -471,7 +513,8 @@
                         .find(tr => tr.textContent.includes('Visibility (m)'));
           if (row)
             scrapedVis = row.querySelectorAll('td')[1].textContent.trim() + 'm';
-        } catch {
+        } catch (e) {
+          console.warn('Bonaire visibility fetch error:', e);
           scrapedVis = 'n/a';
         }
       } else {
@@ -490,7 +533,10 @@
         const list = isLive
           ? await fetch(`https://api.checkwx.com/taf/${tafStations.join(',')}`, {
               headers: { 'X-API-Key': API_KEY }
-            }).then(r => r.json()).then(j => j.data || [])
+            }).then(r => {
+              if (!r.ok) throw new Error('CheckWX TAF response not OK: ' + r.status);
+              return r.json();
+            }).then(j => j.data || [])
           : [
               'TNCB 010300Z 0106/0206 03008KT P6SM SCT025',
               'TNCC 010300Z 0106/0206 34010KT P6SM BKN020'
@@ -499,7 +545,8 @@
           const toks = r.split(' ');
           return `<div><strong>${toks[0]}</strong> <span>${toks[1]}</span> ${toks.slice(2).join(' ')}</div>`;
         }).join('');
-      } catch {
+      } catch (err) {
+        console.warn('TAF fetch error:', err);
         tafEl.textContent = '⚠️ Error loading TAF';
       }
     }
@@ -525,12 +572,24 @@
     document.querySelector('.table-wrapper').addEventListener('dblclick', e => {
       const td = e.target.closest('td');
       if (!td) return;
-      navigator.clipboard.writeText(td.textContent.trim());
+      navigator.clipboard.writeText(td.textContent.trim()).catch(e => console.warn('Clipboard write failed:', e));
     });
 
+    // initial run and timers
     updateAll();
     setInterval(updateClocks, 1000);
     setInterval(updateAll, metarInterval * 1000);
+
+    // Keyboard shortcut to tweak polling interval (ctrl+up / ctrl+down)
+    window.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'ArrowUp') {
+        metarInterval = Math.max(5, metarInterval - 5);
+        console.info('Polling interval set to', metarInterval);
+      } else if (e.ctrlKey && e.key === 'ArrowDown') {
+        metarInterval = Math.min(120, metarInterval + 5);
+        console.info('Polling interval set to', metarInterval);
+      }
+    });
   </script>
 
   <footer>
@@ -541,3 +600,4 @@
 
 </body>
 </html>
+
